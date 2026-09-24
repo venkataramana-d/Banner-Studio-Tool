@@ -2,7 +2,7 @@
 import { themeFor } from "./banner-theme";
 
 export default function Banner({
-  festivalKey, tag, motivation, offerLabel, courseTm, courseValue, code, cta = "Enroll", format = "hero",
+  festivalKey, tag, motivation, offerLabel, courseTm, courseValue, code, cta = "Enroll", format = "hero", autoApply = false,
 }) {
   const [theme, emoji] = themeFor(festivalKey);
   // Never show a country on the banner - strip any parenthetical (e.g. "(India)").
@@ -13,7 +13,7 @@ export default function Banner({
       <div className={`bn strip ${theme}`}>
         <span style={{ minWidth: 0 }}>{tag ? `${tag} - ` : ""}{motivation}</span>
         {offerLabel && <span className="bn-off">{offerLabel}</span>}
-        {code && <span className="bn-code">{code}</span>}
+        {!autoApply && code && <span className="bn-code">{code}</span>}
       </div>
     );
   }
@@ -25,7 +25,7 @@ export default function Banner({
           <div className="bn-tag">{tag}</div>
           <div className="bn-h">{motivation}{offerLabel ? ` - ${offerLabel} ${courseTm || ""}` : ""}</div>
         </div>
-        {code && <span className="bn-code">{code}</span>}
+        {!autoApply && code && <span className="bn-code">{code}</span>}
       </div>
     );
   }
@@ -37,7 +37,7 @@ export default function Banner({
       <div className="bn-h">{motivation}</div>
       <div className="bn-s">{offerLabel} {courseTm}{courseValue ? ` · ${courseValue}` : ""}</div>
       <div className="bn-row">
-        {code && <span className="bn-code">{code}</span>}
+        {!autoApply && code && <span className="bn-code">{code}</span>}
         {cta && <span className="bn-cta">{cta}</span>}
       </div>
     </div>

@@ -16,7 +16,7 @@ function bannerProps(o) {
   const course = courseById(o.courseId);
   return {
     festivalKey: o.festivalKey, tag: fest.name + " Offer", motivation: fest.motivation,
-    offerLabel: displayLabel(o.mode, o.discountPct), courseTm: course?.tm, courseValue: courseValue(course), code: o.couponCode,
+    offerLabel: displayLabel(o.mode, o.discountPct), courseTm: course?.tm, courseValue: courseValue(course), code: o.couponCode, autoApply: !!o.autoApply,
   };
 }
 

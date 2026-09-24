@@ -153,6 +153,7 @@ export default function Coupons() {
                         <span className="mono">{c.code}</span>
                         <button className="row-act" title="Edit code" aria-label="Edit code" onClick={() => startEdit(c)}>✎</button>
                         <button className="row-act" title="Copy code" aria-label="Copy code" onClick={() => copy(c.code)}>{copied === c.code ? "✓" : "⧉"}</button>
+                        {o?.autoApply && <span className="tier t-normal" style={{ fontSize: 9.5 }} title="Hidden on the banner; applied via the Enroll link">auto-apply</span>}
                       </div>
                     )}
                   </td>

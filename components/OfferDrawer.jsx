@@ -28,6 +28,7 @@ export default function OfferDrawer() {
   const [saving, setSaving] = useState(false);
   const [conflicts, setConflicts] = useState([]);
   const [couponCode, setCouponCode] = useState("");
+  const [autoApply, setAutoApply] = useState(false);
   const [customDates, setCustomDates] = useState(false);
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
@@ -52,6 +53,7 @@ export default function OfferDrawer() {
     setCouponCode(o?.id ? (o?.couponCode || neutralCode(f, o?.year || 2026)) : neutralCode(f, o?.year || 2026));
     // Editing an existing offer: keep its exact window (so a discount edit doesn't
     // silently reschedule it or take a live offer offline). New offers compute from lead/trail.
+    setAutoApply(!!o?.autoApply);
     setCustomDates(!!(o?.id && o?.startsAt && o?.endsAt));
     setStartDate(o?.startsAt ? o.startsAt.slice(0, 10) : "");
     setEndDate(o?.endsAt ? o.endsAt.slice(0, 10) : "");
@@ -100,14 +102,14 @@ export default function OfferDrawer() {
     setConflicts([]);
     const payload = {
       festivalKey, year, mode, discountPct, courseId, placeholder, lead, trail, countries,
-      status: targetStatus, site, couponCode,
+      status: targetStatus, site, couponCode, autoApply,
       ...(useCustom ? { windowOverride: { eventDate: win.eventDate, startsAt: win.startsAt, endsAt: win.endsAt } } : {}),
     };
     try {
       if (editing?.id) {
         const patch = {
           mode, discountPct, courseId, courseName: course.name, placeholder, lead, trail, countries,
-          couponCode, status: targetStatus,
+          couponCode, autoApply, status: targetStatus,
           eventDate: win?.eventDate, startsAt: win?.startsAt, endsAt: win?.endsAt,
         };
         await fetch(`/api/offers/${editing.id}`, { method: "PUT", body: JSON.stringify(patch) });
@@ -132,7 +134,7 @@ export default function OfferDrawer() {
     setSaving(true);
     const payload = {
       festivalKey, year, mode, discountPct, courseId, placeholder, lead, trail, countries,
-      status: "scheduled", site, couponCode, force: true,
+      status: "scheduled", site, couponCode, autoApply, force: true,
       ...(useCustom ? { windowOverride: { eventDate: win.eventDate, startsAt: win.startsAt, endsAt: win.endsAt } } : {}),
     };
     await fetch("/api/offers", { method: "POST", body: JSON.stringify(payload) });
@@ -251,12 +253,16 @@ export default function OfferDrawer() {
           <div className="field"><label>Display code (editable, no country)</label>
             <input value={couponCode} onChange={(e) => setCouponCode(e.target.value.toUpperCase())} maxLength={24} placeholder="e.g. DIWALI26" />
           </div>
+          <label style={{ display: "flex", gap: 8, alignItems: "flex-start", fontSize: 12.5, color: "var(--muted)", cursor: "pointer" }}>
+            <input type="checkbox" checked={autoApply} onChange={(e) => setAutoApply(e.target.checked)} style={{ marginTop: 2 }} />
+            <span>Auto-apply via link (hides the code on the banner, so it can't be scraped and shared - the discount applies from the Enroll link).</span>
+          </label>
 
           <div className="section-t">Live preview - {PLACEHOLDERS.find((p) => p.key === placeholder)?.name}</div>
           <div style={{ maxWidth: "100%", overflow: "hidden" }}>
             <Banner festivalKey={festivalKey} tag={fest.name + " Offer"} motivation={fest.motivation}
               offerLabel={label} courseTm={course.tm} courseValue={courseValue(course)} code={couponCode}
-              format={placeFormat(placeholder)} />
+              autoApply={autoApply} format={placeFormat(placeholder)} />
           </div>
 
           {conflicts.length > 0 && (
