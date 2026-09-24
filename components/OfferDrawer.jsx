@@ -48,7 +48,8 @@ export default function OfferDrawer() {
     setTrail(o?.trail ?? f.trail);
     setCountries(o?.countries?.length ? o.countries : (f.countries || []));
     setConflicts([]);
-    setCouponCode(o?.couponCode || neutralCode(f, o?.year || 2026));
+    // editing keeps the existing code; a new/duplicated offer gets a fresh code for its festival+year
+    setCouponCode(o?.id ? (o?.couponCode || neutralCode(f, o?.year || 2026)) : neutralCode(f, o?.year || 2026));
     // Editing an existing offer: keep its exact window (so a discount edit doesn't
     // silently reschedule it or take a live offer offline). New offers compute from lead/trail.
     setCustomDates(!!(o?.id && o?.startsAt && o?.endsAt));

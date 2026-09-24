@@ -40,6 +40,8 @@ export default function Campaigns() {
     await fetch(`/api/offers/${o.id}`, { method: "PUT", body: JSON.stringify({ status: resuming ? "scheduled" : "paused" }) });
     refresh(); toast(resuming ? "Offer resumed" : "Offer paused");
   }
+  // Duplicate: open a pre-filled Create drawer from this offer (change the year to clone to next year).
+  function duplicate(o) { openDrawer({ ...o, id: undefined }); toast("Duplicated - adjust and schedule", "info"); }
 
   return (
     <>
@@ -90,6 +92,7 @@ export default function Campaigns() {
                   <td className="tnum cell-sub">{(o.impressions || 0).toLocaleString()} / {(o.clicks || 0).toLocaleString()}</td>
                   <td style={{ whiteSpace: "nowrap" }} onClick={(e) => e.stopPropagation()}>
                     <button className="row-act" title="Edit" aria-label="Edit offer" onClick={() => openDrawer(o)}>✎</button>
+                    <button className="row-act" title="Duplicate / clone" aria-label="Duplicate offer" onClick={() => duplicate(o)}>⧉</button>
                     <button className="row-act" title={o.status === "paused" ? "Resume" : "Pause"} aria-label={o.status === "paused" ? "Resume offer" : "Pause offer"} onClick={() => pause(o)}>{o.status === "paused" ? "▶" : "⏸"}</button>
                     <button className="row-act" title="Delete" aria-label="Delete offer" onClick={() => del(o)}>🗑</button>
                   </td>
