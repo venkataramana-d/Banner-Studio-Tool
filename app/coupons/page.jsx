@@ -61,14 +61,17 @@ export default function Coupons() {
   }
 
   async function runTest() {
-    if (!testCode.trim()) return;
+    const code = testCode.trim().toUpperCase();
+    if (!code) { setTestResult({ valid: false, message: "Enter a coupon code to test." }); return; }
     setTesting(true); setTestResult(null);
     try {
       const r = await fetch("/api/coupons/validate", {
         method: "POST",
-        body: JSON.stringify({ code: testCode.trim().toUpperCase(), site: "invensis", country: testCountry }),
+        body: JSON.stringify({ code, site: "invensis", country: testCountry }),
       }).then((x) => x.json());
-      setTestResult(r);
+      // enrich with the coupon's own window/countries so the result explains itself
+      const found = coupons.find((c) => c.code === code);
+      setTestResult({ ...r, window: found ? { from: found.validFrom, to: found.validTo } : null, worksIn: found?.countries || [] });
     } catch { setTestResult({ valid: false, message: "Could not reach the validator." }); }
     setTesting(false);
   }
@@ -106,6 +109,12 @@ export default function Coupons() {
             {testResult.valid
               ? `✓ Valid in ${countryName(testCountry)}: ${testResult.mode === "retheme" ? "20% (re-theme)" : testResult.mode === "extra" ? `extra ${testResult.discountPct}%` : `${testResult.discountPct}% off`} applies.`
               : `✕ ${testResult.message}`}
+            {!testResult.valid && testResult.reason === "expired_or_not_started" && testResult.window && (
+              <span style={{ fontWeight: 500 }}> It runs {fmt(testResult.window.from)} to {fmt(testResult.window.to)}.</span>
+            )}
+            {!testResult.valid && testResult.reason === "wrong_country" && testResult.worksIn?.length > 0 && (
+              <span style={{ fontWeight: 500 }}> It works in: {testResult.worksIn.join(", ")}.</span>
+            )}
           </div>
         )}
       </div>
