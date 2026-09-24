@@ -30,7 +30,11 @@ export default function Campaigns() {
       (!q || (o.name + o.courseName + o.couponCode).toLowerCase().includes(q));
   });
 
-  async function del(id) { await fetch(`/api/offers/${id}`, { method: "DELETE" }); refresh(); }
+  async function del(o) {
+    if (!window.confirm(`Delete the "${o.name}" offer for ${o.courseName}? This also removes its coupon and cannot be undone.`)) return;
+    await fetch(`/api/offers/${o.id}`, { method: "DELETE" });
+    refresh();
+  }
   async function pause(o) { await fetch(`/api/offers/${o.id}`, { method: "PUT", body: JSON.stringify({ status: o.status === "paused" ? "scheduled" : "paused" }) }); refresh(); }
 
   return (
@@ -83,7 +87,7 @@ export default function Campaigns() {
                   <td style={{ whiteSpace: "nowrap" }} onClick={(e) => e.stopPropagation()}>
                     <button className="row-act" title="Edit" aria-label="Edit offer" onClick={() => openDrawer(o)}>✎</button>
                     <button className="row-act" title={o.status === "paused" ? "Resume" : "Pause"} aria-label={o.status === "paused" ? "Resume offer" : "Pause offer"} onClick={() => pause(o)}>{o.status === "paused" ? "▶" : "⏸"}</button>
-                    <button className="row-act" title="Delete" aria-label="Delete offer" onClick={() => del(o.id)}>🗑</button>
+                    <button className="row-act" title="Delete" aria-label="Delete offer" onClick={() => del(o)}>🗑</button>
                   </td>
                 </tr>
               );

@@ -19,9 +19,12 @@ function discountText(c) {
 export default function Coupons() {
   const coupons = useCoupons();
   const offers = useOffers();
-  const { search } = useUI();
+  const { search, refresh } = useUI();
   const [status, setStatus] = useState("");
   const [copied, setCopied] = useState("");
+  const [editId, setEditId] = useState(null);
+  const [editVal, setEditVal] = useState("");
+  const [savingEdit, setSavingEdit] = useState(false);
   const [testCode, setTestCode] = useState("");
   const [testCountry, setTestCountry] = useState("IN");
   const [testResult, setTestResult] = useState(null);
@@ -42,6 +45,19 @@ export default function Coupons() {
 
   async function copy(code) {
     try { await navigator.clipboard.writeText(code); setCopied(code); setTimeout(() => setCopied(""), 1500); } catch { setCopied(""); }
+  }
+
+  function startEdit(c) { setEditId(c.id); setEditVal(c.code); }
+  function cancelEdit() { setEditId(null); setEditVal(""); }
+  async function saveEdit(c) {
+    const code = editVal.trim().toUpperCase();
+    if (!code || code === c.code) { cancelEdit(); return; }
+    setSavingEdit(true);
+    try {
+      await fetch(`/api/offers/${c.offerId}`, { method: "PUT", body: JSON.stringify({ couponCode: code }) });
+      refresh();
+    } catch { alert("Could not update the code."); }
+    setSavingEdit(false); cancelEdit();
   }
 
   async function runTest() {
@@ -114,10 +130,22 @@ export default function Coupons() {
               return (
                 <tr key={c.id}>
                   <td>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      <span className="mono">{c.code}</span>
-                      <button className="row-act" title="Copy code" onClick={() => copy(c.code)}>{copied === c.code ? "✓" : "⧉"}</button>
-                    </div>
+                    {editId === c.id ? (
+                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <input className="mono" style={{ width: 150, padding: "4px 8px", border: "1px solid var(--brand)", borderRadius: 6, background: "var(--surface)", color: "var(--ink)", textTransform: "uppercase" }}
+                          value={editVal} autoFocus maxLength={24} disabled={savingEdit}
+                          onChange={(e) => setEditVal(e.target.value.toUpperCase())}
+                          onKeyDown={(e) => { if (e.key === "Enter") saveEdit(c); if (e.key === "Escape") cancelEdit(); }} />
+                        <button className="row-act" title="Save" aria-label="Save code" onClick={() => saveEdit(c)}>✓</button>
+                        <button className="row-act" title="Cancel" aria-label="Cancel" onClick={cancelEdit}>✕</button>
+                      </div>
+                    ) : (
+                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <span className="mono">{c.code}</span>
+                        <button className="row-act" title="Edit code" aria-label="Edit code" onClick={() => startEdit(c)}>✎</button>
+                        <button className="row-act" title="Copy code" aria-label="Copy code" onClick={() => copy(c.code)}>{copied === c.code ? "✓" : "⧉"}</button>
+                      </div>
+                    )}
                   </td>
                   <td>{emoji} {o ? o.name : "-"}</td>
                   <td className="disc">{discountText(c)}</td>
