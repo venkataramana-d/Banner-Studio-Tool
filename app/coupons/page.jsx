@@ -44,7 +44,17 @@ export default function Coupons() {
   const avgDisc = coupons.length ? Math.round(coupons.reduce((s, c) => s + (c.mode === "retheme" ? 20 : c.discountPct || 0), 0) / coupons.length) : 0;
 
   async function copy(code) {
-    try { await navigator.clipboard.writeText(code); setCopied(code); setTimeout(() => setCopied(""), 1500); } catch { setCopied(""); }
+    let ok = false;
+    try { await navigator.clipboard.writeText(code); ok = true; } catch {}
+    if (!ok) {
+      try {
+        const ta = document.createElement("textarea");
+        ta.value = code; ta.style.position = "fixed"; ta.style.opacity = "0";
+        document.body.appendChild(ta); ta.select(); ok = document.execCommand("copy");
+        document.body.removeChild(ta);
+      } catch {}
+    }
+    if (ok) { setCopied(code); setTimeout(() => setCopied(""), 1500); }
   }
 
   function startEdit(c) { setEditId(c.id); setEditVal(c.code); }
@@ -149,10 +159,14 @@ export default function Coupons() {
                         <button className="row-act" title="Cancel" aria-label="Cancel" onClick={cancelEdit}>✕</button>
                       </div>
                     ) : (
-                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                        <span className="mono">{c.code}</span>
-                        <button className="row-act" title="Edit code" aria-label="Edit code" onClick={() => startEdit(c)}>✎</button>
-                        <button className="row-act" title="Copy code" aria-label="Copy code" onClick={() => copy(c.code)}>{copied === c.code ? "✓" : "⧉"}</button>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+                        <div>
+                          <div style={{ fontFamily: "ui-monospace,SFMono-Regular,Menlo,monospace", fontSize: 13.5, fontWeight: 600, letterSpacing: ".01em" }}>{c.code}</div>
+                          <div style={{ display: "inline-flex", gap: 12, marginTop: 4 }}>
+                            <button className="link" aria-label="Copy code" onClick={() => copy(c.code)}>{copied === c.code ? "Copied" : "Copy"}</button>
+                            <button className="link" aria-label="Edit code" onClick={() => startEdit(c)}>Edit</button>
+                          </div>
+                        </div>
                         {o?.autoApply && <span className="tier t-normal" style={{ fontSize: 9.5 }} title="Hidden on the banner; applied via the Enroll link">auto-apply</span>}
                       </div>
                     )}
