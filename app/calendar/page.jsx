@@ -9,6 +9,16 @@ const MONTHS = ["January", "February", "March", "April", "May", "June", "July", 
 const DOW = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const isCode = (s) => /^[A-Z]{2}$/.test(s) && COUNTRIES.some((c) => c.code === s);
 
+// Marker label: public holiday, global festival, or a country festival tagged with its country code(s).
+function markerLabel(ev) {
+  if (ev.public) return "📅 " + ev.name;
+  const clean = ev.name.replace(/\s*\([^)]*\)/g, "").trim();
+  if (ev.global) return "🌍 " + clean;
+  const cs = ev.countries || [];
+  const codes = cs.length <= 2 ? cs.join(", ") : `${cs.slice(0, 2).join(", ")} +${cs.length - 2}`;
+  return codes ? `${clean} (${codes})` : clean;
+}
+
 function match(f, sel) {
   if (sel === "ALL") return true;
   if (sel === "GLOBAL") return f.scope === "global";
@@ -48,7 +58,7 @@ export default function Calendar() {
   const seen = new Set();
   curated.forEach((x) => {
     seen.add(x.f.name.toLowerCase());
-    (byDay[x.dt.d] = byDay[x.dt.d] || []).push({ key: x.f.key, name: x.f.name, tier: x.f.tier, festival: true, global: x.f.scope === "global" });
+    (byDay[x.dt.d] = byDay[x.dt.d] || []).push({ key: x.f.key, name: x.f.name, tier: x.f.tier, festival: true, global: x.f.scope === "global", countries: x.f.countries });
   });
   // Merge public holidays for the selected country (skip duplicates of curated)
   if (isCode(country)) {
@@ -105,7 +115,7 @@ export default function Calendar() {
                   <button key={k} className={`cal-ev ev-${ev.tier}${ev.festival && booked.has(ev.key) ? " booked" : ""}`}
                     title={ev.public ? "Public holiday - create an auto offer" : ev.global ? "Global festival - runs in all countries" : booked.has(ev.key) ? "Offer already booked" : "Create offer"}
                     onClick={() => openDrawer(ev.festival ? { festivalKey: ev.key, year } : null)}>
-                    {ev.public ? "📅 " : ev.global ? "🌍 " : ""}{ev.name}
+                    {markerLabel(ev)}
                   </button>
                 ))}
               </>}
