@@ -19,7 +19,7 @@ function discountText(c) {
 export default function Coupons() {
   const coupons = useCoupons();
   const offers = useOffers();
-  const { search, refresh } = useUI();
+  const { search, refresh, toast } = useUI();
   const [status, setStatus] = useState("");
   const [copied, setCopied] = useState("");
   const [editId, setEditId] = useState(null);
@@ -55,8 +55,8 @@ export default function Coupons() {
     setSavingEdit(true);
     try {
       await fetch(`/api/offers/${c.offerId}`, { method: "PUT", body: JSON.stringify({ couponCode: code }) });
-      refresh();
-    } catch { alert("Could not update the code."); }
+      refresh(); toast(`Coupon code updated to ${code}`);
+    } catch { toast("Could not update the code", "error"); }
     setSavingEdit(false); cancelEdit();
   }
 

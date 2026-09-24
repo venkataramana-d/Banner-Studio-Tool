@@ -12,7 +12,7 @@ const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 
 export default function Campaigns() {
   const offers = useOffers();
-  const { openDrawer, refresh, search } = useUI();
+  const { openDrawer, refresh, search, toast } = useUI();
   const [f, setF] = useState({ status: "", country: "", cat: "", tier: "", place: "" });
   const set = (k, v) => setF((p) => ({ ...p, [k]: v }));
   const reset = () => setF({ status: "", country: "", cat: "", tier: "", place: "" });
@@ -33,9 +33,13 @@ export default function Campaigns() {
   async function del(o) {
     if (!window.confirm(`Delete the "${o.name}" offer for ${o.courseName}? This also removes its coupon and cannot be undone.`)) return;
     await fetch(`/api/offers/${o.id}`, { method: "DELETE" });
-    refresh();
+    refresh(); toast(`Deleted "${o.name}"`);
   }
-  async function pause(o) { await fetch(`/api/offers/${o.id}`, { method: "PUT", body: JSON.stringify({ status: o.status === "paused" ? "scheduled" : "paused" }) }); refresh(); }
+  async function pause(o) {
+    const resuming = o.status === "paused";
+    await fetch(`/api/offers/${o.id}`, { method: "PUT", body: JSON.stringify({ status: resuming ? "scheduled" : "paused" }) });
+    refresh(); toast(resuming ? "Offer resumed" : "Offer paused");
+  }
 
   return (
     <>

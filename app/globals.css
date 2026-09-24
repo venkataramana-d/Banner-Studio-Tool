@@ -254,6 +254,14 @@ tbody tr:hover{background:var(--surface-2)}
 .btn-primary{flex:1;border:none;background:var(--cta);color:#fff;border-radius:10px;padding:11px;font-weight:700;font-size:13.5px;box-shadow:0 4px 12px rgba(255,106,0,.28)}
 .conflict{border:1px solid var(--crit);background:var(--crit-bg);border-radius:10px;padding:10px 13px;font-size:12.5px;color:var(--crit);font-weight:600}
 
+.toast-wrap{position:fixed;bottom:20px;right:20px;z-index:80;display:flex;flex-direction:column;gap:10px;max-width:min(360px,90vw)}
+.toast{display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--good);border-radius:11px;padding:11px 14px;box-shadow:var(--shadow);font-size:13px;font-weight:500;color:var(--ink);cursor:pointer;animation:toastIn .2s ease}
+.toast-error{border-left-color:var(--crit)} .toast-info{border-left-color:var(--brand)}
+.toast-ic{width:20px;height:20px;border-radius:50%;display:grid;place-items:center;background:var(--good-bg);color:#0B7A47;font-size:12px;font-weight:700;flex:none}
+:root[data-theme="dark"] .toast-ic{color:#4BD79B}
+.toast-error .toast-ic{background:var(--crit-bg);color:var(--crit)} .toast-info .toast-ic{background:var(--info-bg);color:var(--brand)}
+@keyframes toastIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
 .menu-btn{display:none}
 @media(max-width:960px){.kpis,.kpis.k4{grid-template-columns:repeat(3,1fr)}.grid-2,.settings-grid{grid-template-columns:1fr}.grid-3{grid-template-columns:1fr}.sm-hero{grid-template-columns:1fr}}
 @media(max-width:760px){

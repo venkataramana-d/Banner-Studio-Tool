@@ -13,7 +13,7 @@ const fmtDate = (iso) => (iso ? new Date(iso).toLocaleDateString("en-US", { mont
 const placeFormat = (key) => ({ course_top_bar: "thin", site_top_strip: "strip", bottom_action_bar: "strip", home_hero: "hero", popup_toast: "hero" }[key] || "hero");
 
 export default function OfferDrawer() {
-  const { drawer, closeDrawer, refresh, site } = useUI();
+  const { drawer, closeDrawer, refresh, site, toast } = useUI();
   const editing = drawer.offer?.id ? drawer.offer : null;
 
   const [festivalKey, setFestivalKey] = useState("in_diwali");
@@ -120,9 +120,10 @@ export default function OfferDrawer() {
         }
       }
       refresh();
+      toast(editing?.id ? "Offer updated" : (targetStatus === "draft" ? "Draft saved" : "Offer scheduled"));
       closeDrawer();
     } catch (e) {
-      alert("Could not save: " + e.message);
+      toast("Could not save the offer", "error");
     }
     setSaving(false);
   }
@@ -134,7 +135,7 @@ export default function OfferDrawer() {
       ...(useCustom ? { windowOverride: { eventDate: win.eventDate, startsAt: win.startsAt, endsAt: win.endsAt } } : {}),
     };
     await fetch("/api/offers", { method: "POST", body: JSON.stringify(payload) });
-    refresh(); closeDrawer(); setSaving(false);
+    refresh(); toast("Offer scheduled"); closeDrawer(); setSaving(false);
   }
 
   if (!drawer.open) return null;

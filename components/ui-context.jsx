@@ -10,6 +10,14 @@ export function UIProvider({ children }) {
   const [search, setSearch] = useState("");
   const [drawer, setDrawer] = useState({ open: false, offer: null });
   const [version, setVersion] = useState(0); // bump to refresh data-driven pages
+  const [toasts, setToasts] = useState([]);
+
+  const toast = useCallback((message, type = "success") => {
+    const id = Date.now() + Math.random();
+    setToasts((t) => [...t, { id, message, type }]);
+    setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 2800);
+  }, []);
+  const dismissToast = useCallback((id) => setToasts((t) => t.filter((x) => x.id !== id)), []);
 
   useEffect(() => {
     try {
@@ -43,7 +51,7 @@ export function UIProvider({ children }) {
   const refresh = useCallback(() => setVersion((v) => v + 1), []);
 
   return (
-    <UIContext.Provider value={{ site, changeSite, country, setCountry, search, setSearch, theme, toggleTheme, drawer, openDrawer, closeDrawer, version, refresh }}>
+    <UIContext.Provider value={{ site, changeSite, country, setCountry, search, setSearch, theme, toggleTheme, drawer, openDrawer, closeDrawer, version, refresh, toasts, toast, dismissToast }}>
       {children}
     </UIContext.Provider>
   );

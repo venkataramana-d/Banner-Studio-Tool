@@ -27,7 +27,7 @@ function Toggle({ on, onClick, label }) {
 }
 
 export default function Settings() {
-  const { refresh } = useUI();
+  const { refresh, toast } = useUI();
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(false);
   const [s, setS] = useState(DEFAULTS);
@@ -52,7 +52,7 @@ export default function Settings() {
   async function reset() {
     setBusy(true);
     await fetch("/api/reset", { method: "POST" });
-    refresh(); setBusy(false);
+    refresh(); setBusy(false); toast("Demo data reset");
   }
 
   return (

@@ -3,6 +3,7 @@ import { useState } from "react";
 import Sidebar from "./Sidebar";
 import Topbar from "./Topbar";
 import OfferDrawer from "./OfferDrawer";
+import Toasts from "./Toasts";
 import { UIProvider } from "./ui-context";
 
 export default function Shell({ children }) {
@@ -16,6 +17,7 @@ export default function Shell({ children }) {
           <div className="content">{children}</div>
         </div>
         <OfferDrawer />
+        <Toasts />
       </div>
     </UIProvider>
   );
