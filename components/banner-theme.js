@@ -1,0 +1,35 @@
+// Maps a festival key to a visual theme class + emoji for the banner.
+const MAP = {
+  in_diwali: ["th-diwali", "🪔"],
+  in_dussehra: ["th-diwali", "🪔"],
+  in_ganesh_chaturthi: ["th-diwali", "🐘"],
+  in_navratri: ["th-diwali", "🪔"],
+  in_holi: ["th-1111", "🎨"],
+  in_republic_day: ["th-republic", "🇮🇳"],
+  in_independence_day: ["th-republic", "🇮🇳"],
+  in_gandhi_jayanti: ["th-republic", "🕊️"],
+  in_makar_sankranti: ["th-republic", "🌾"],
+  in_maha_shivratri: ["th-brand", "🙏"],
+  in_ram_navami: ["th-brand", "🙏"],
+  in_raksha_bandhan: ["th-brand", "🎗️"],
+  in_janmashtami: ["th-brand", "🎶"],
+  in_guru_nanak_jayanti: ["th-brand", "🕯️"],
+  black_friday: ["th-bf", "⚡"],
+  cyber_monday: ["th-bf", "💻"],
+  white_friday: ["th-bf", "🕌"],
+  new_year: ["th-ny", "🎆"],
+  christmas: ["th-ny", "🎄"],
+  singles_day: ["th-1111", "1️⃣"],
+  eid_al_fitr: ["th-eid", "🌙"],
+  eid_al_adha: ["th-eid", "🌙"],
+  us_thanksgiving: ["th-bf", "🦃"],
+  us_july4: ["th-ny", "🎆"],
+  us_labor_day: ["th-brand", "🛠️"],
+  gb_boxing_day: ["th-ny", "🎁"],
+  valentines: ["th-1111", "❤️"],
+  womens_day: ["th-1111", "🌷"],
+  labour_day: ["th-brand", "🛠️"],
+};
+export function themeFor(key) {
+  return MAP[key] || ["th-brand", "🎉"];
+}

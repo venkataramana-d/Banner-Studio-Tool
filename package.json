@@ -1,0 +1,23 @@
+{
+  "name": "banner-studio",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Banner Automation admin tool for Invensis Learning. Festival offer banners that run automatically by country and date.",
+  "scripts": {
+    "dev": "next dev -p 4300",
+    "dev2": "next dev -p 4311",
+    "build": "next build",
+    "start": "next start -p 4300",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "next": "^14.2.35",
+    "react": "18.3.1",
+    "react-dom": "18.3.1"
+  },
+  "devDependencies": {
+    "autoprefixer": "10.4.20",
+    "postcss": "8.4.47",
+    "tailwindcss": "3.4.14"
+  }
+}
