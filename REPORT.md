@@ -23,12 +23,16 @@ automatically by country and date.
 
 ### Create / Edit offer (the core screen)
 - Pick a festival -> auto tier + discount; hybrid 20%-off pricing with a 35% margin-floor guard.
+- Custom occasions - create your own (e.g. Invensis Anniversary) with a name, tier, scope and date; it builds the window and coupon like a built-in festival.
 - Global or country targeting (never shown on the banner).
 - Editable coupon code, editable timeline (lead/trail days or exact start/end dates).
 - Auto-apply links - hide the code so it can't be scraped; discount applies via the Enroll link.
 - Editable Banner Editor - tag, headline, value line and button text, each with show/hide, in a live preview.
 - Overlap prevention (one offer per placeholder x country) with a "publish anyway" override.
 - Duplicate / clone (change the year to set up next year's campaign).
+
+### Coupons page
+- Redesigned code cell: code on top with Copy / Edit text links beneath and an auto-apply tag; inline code editing; live coupon tester that explains its result; KPI tiles; status filters.
 
 ### Cross-cutting
 - Motivation-led banners: never show a country name or a price; no em dashes anywhere.
