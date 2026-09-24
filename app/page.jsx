@@ -63,7 +63,7 @@ export default function Dashboard() {
         {upcoming[0] && <div className="alert warn">
           <svg width="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 9v4M12 17h.01M10.3 3.9 2 18a2 2 0 0 0 1.7 3h16.6a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z" /></svg>
           Next up: {upcoming[0].f.name} on {M[upcoming[0].dt.m - 1]} {upcoming[0].dt.d}.
-          <b style={{ marginLeft: 6, cursor: "pointer", textDecoration: "underline" }} onClick={() => openDrawer(null)}>Create an offer →</b></div>}
+          <button className="link" style={{ marginLeft: 6, textDecoration: "underline", cursor: "pointer" }} onClick={() => openDrawer({ festivalKey: upcoming[0].f.key, year: 2026 })}>Create an offer →</button></div>}
       </div>
       <div className="kpis">
         <div className="kpi"><div className="k-label">Live now</div><div className="k-val tnum">{live.length}</div><div className="k-trend up">auto-running</div></div>
@@ -101,7 +101,7 @@ export default function Dashboard() {
             <div className="fest" key={f.key}>
               <div className="fdate"><div className="d">{String(dt.d).padStart(2, "0")}</div><div className="m">{M[dt.m - 1]}</div></div>
               <div className="fmain"><div className="fname">{f.name}</div><div className="fmeta">{f.scope === "global" ? "Global" : f.countries.map(countryFlag).join(" ")} · {f.tier === "major" ? "Major" : "Normal"}</div></div>
-              <button className="mini-btn" onClick={() => openDrawer(null)}>+ Offer</button>
+              <button className="mini-btn" onClick={() => openDrawer({ festivalKey: f.key, year: 2026 })}>+ Offer</button>
             </div>
           ))}
         </div>

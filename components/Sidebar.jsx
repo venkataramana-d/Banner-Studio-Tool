@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useOffers } from "./data";
 
 const NAV = [
   { section: "Overview" },
@@ -27,6 +28,8 @@ function Icon({ id }) {
 
 export default function Sidebar({ open }) {
   const path = usePathname();
+  const offers = useOffers();
+  const liveCount = (offers || []).filter((o) => o.status === "live").length;
   return (
     <aside className={"sidebar" + (open ? " open" : "")}>
       <div className="brand" style={{ flexDirection: "column", alignItems: "flex-start", gap: 10 }}>
@@ -47,7 +50,7 @@ export default function Sidebar({ open }) {
               className={"nav-item" + (path === n.href ? " active" : "")}>
               <Icon id={n.icon} />
               {n.label}
-              {n.badge && <span className="nav-badge">4</span>}
+              {n.badge && liveCount > 0 && <span className="nav-badge" title={`${liveCount} live now`}>{liveCount}</span>}
             </Link>
           )
         )}

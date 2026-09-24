@@ -8,9 +8,9 @@ export default function Topbar({ onMenu }) {
       <button className="icon-btn menu-btn" onClick={onMenu} aria-label="Menu">
         <svg width="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 6h16M4 12h16M4 18h16" /></svg>
       </button>
-      <div className="switcher hide-sm">
+      <div className="switcher hide-sm" title="Edstellar arrives in v1.1">
         <button className={site === "invensis" ? "on" : ""} onClick={() => changeSite("invensis")}>Invensis</button>
-        <button className={site === "edstellar" ? "on" : ""} onClick={() => changeSite("edstellar")}>Edstellar</button>
+        <button disabled title="Coming in v1.1" style={{ opacity: 0.5, cursor: "not-allowed" }}>Edstellar</button>
       </div>
       <div className="search">
         <svg width="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="7" /><path d="m21 21-4-4" /></svg>

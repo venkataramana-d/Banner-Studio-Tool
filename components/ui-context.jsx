@@ -16,8 +16,14 @@ export function UIProvider({ children }) {
       const t = localStorage.getItem("bs_theme");
       if (t) { setTheme(t); document.documentElement.setAttribute("data-theme", t); }
       const s = localStorage.getItem("bs_site"); if (s) setSite(s);
+      const q = sessionStorage.getItem("bs_search"); if (q) setSearch(q);
     } catch {}
   }, []);
+
+  // keep the search query across reloads / hard navigations
+  useEffect(() => {
+    try { sessionStorage.setItem("bs_search", search); } catch {}
+  }, [search]);
 
   const toggleTheme = useCallback(() => {
     setTheme((prev) => {

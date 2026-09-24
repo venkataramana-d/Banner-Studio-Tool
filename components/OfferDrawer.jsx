@@ -49,7 +49,9 @@ export default function OfferDrawer() {
     setCountries(o?.countries?.length ? o.countries : (f.countries || []));
     setConflicts([]);
     setCouponCode(o?.couponCode || neutralCode(f, o?.year || 2026));
-    setCustomDates(false);
+    // Editing an existing offer: keep its exact window (so a discount edit doesn't
+    // silently reschedule it or take a live offer offline). New offers compute from lead/trail.
+    setCustomDates(!!(o?.id && o?.startsAt && o?.endsAt));
     setStartDate(o?.startsAt ? o.startsAt.slice(0, 10) : "");
     setEndDate(o?.endsAt ? o.endsAt.slice(0, 10) : "");
   }, [drawer.open, drawer.offer]);

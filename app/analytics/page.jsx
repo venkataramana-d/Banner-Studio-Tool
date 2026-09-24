@@ -30,8 +30,8 @@ export default function Analytics() {
   return (
     <>
       <div className="page-head">
-        <div><div className="eyebrow">Performance</div><h1>Analytics</h1><p>CTR, redemptions and revenue by offer, country and placeholder.</p></div>
-        <select className="select"><option>Last 30 days</option><option>Last 90 days</option><option>This year</option></select>
+        <div><div className="eyebrow">Performance</div><h1>Analytics</h1><p>CTR, redemptions and revenue by offer, country and placeholder. <span style={{ color: "var(--muted)" }}>(sample data - date filtering arrives with live analytics)</span></p></div>
+        <select className="select" disabled title="Date filtering arrives with live analytics"><option>Last 30 days</option><option>Last 90 days</option><option>This year</option></select>
       </div>
       <div className="kpis k4">
         <div className="kpi"><div className="k-label">Impressions</div><div className="k-val tnum">{impressions.toLocaleString()}</div><div className="k-trend up">▲ 18%</div></div>
