@@ -32,6 +32,13 @@ export default function OfferDrawer() {
   const [customDates, setCustomDates] = useState(false);
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  // editable banner creative
+  const [cTag, setCTag] = useState("");
+  const [cHeadline, setCHeadline] = useState("");
+  const [cValue, setCValue] = useState("");
+  const [cCta, setCCta] = useState("Enroll");
+  const [showValue, setShowValue] = useState(true);
+  const [showCta, setShowCta] = useState(true);
 
   // initialize when drawer opens
   useEffect(() => {
@@ -57,6 +64,15 @@ export default function OfferDrawer() {
     setCustomDates(!!(o?.id && o?.startsAt && o?.endsAt));
     setStartDate(o?.startsAt ? o.startsAt.slice(0, 10) : "");
     setEndDate(o?.endsAt ? o.endsAt.slice(0, 10) : "");
+    // banner creative: load existing overrides or start from festival/course defaults
+    const cr = o?.creative;
+    const crs = courseById(o?.courseId || "pmp");
+    setCTag(cr?.tagText ?? (f.name + " Offer"));
+    setCHeadline(cr?.headline ?? f.motivation);
+    setCValue(cr?.valueLine || courseValue(crs));
+    setCCta(cr?.ctaText || "Enroll");
+    setShowValue(cr ? cr.showValue !== false : true);
+    setShowCta(cr ? cr.showCta !== false : true);
   }, [drawer.open, drawer.offer]);
 
   const fest = festivalByKey(festivalKey);
@@ -72,6 +88,12 @@ export default function OfferDrawer() {
     setTrail(f.trail);
     setCountries(f.countries || []);
     setCouponCode(neutralCode(f, year));
+    setCTag(f.name + " Offer");
+    setCHeadline(f.motivation);
+  }
+  function onCourse(id) {
+    setCourseId(id);
+    setCValue(courseValue(courseById(id)));
   }
   function onYear(y) {
     setYear(y);
@@ -96,20 +118,21 @@ export default function OfferDrawer() {
   const current = Math.round(course.price * 0.8);
   const floorOk = marginOk(course.price, festPrice);
   const useCustom = customDates && startDate && endDate;
+  const creative = { tagText: cTag, headline: cHeadline, valueLine: cValue, ctaText: cCta, showValue, showCta };
 
   async function save(targetStatus) {
     setSaving(true);
     setConflicts([]);
     const payload = {
       festivalKey, year, mode, discountPct, courseId, placeholder, lead, trail, countries,
-      status: targetStatus, site, couponCode, autoApply,
+      status: targetStatus, site, couponCode, autoApply, creative,
       ...(useCustom ? { windowOverride: { eventDate: win.eventDate, startsAt: win.startsAt, endsAt: win.endsAt } } : {}),
     };
     try {
       if (editing?.id) {
         const patch = {
           mode, discountPct, courseId, courseName: course.name, placeholder, lead, trail, countries,
-          couponCode, autoApply, status: targetStatus,
+          couponCode, autoApply, creative, status: targetStatus,
           eventDate: win?.eventDate, startsAt: win?.startsAt, endsAt: win?.endsAt,
         };
         await fetch(`/api/offers/${editing.id}`, { method: "PUT", body: JSON.stringify(patch) });
@@ -134,7 +157,7 @@ export default function OfferDrawer() {
     setSaving(true);
     const payload = {
       festivalKey, year, mode, discountPct, courseId, placeholder, lead, trail, countries,
-      status: "scheduled", site, couponCode, autoApply, force: true,
+      status: "scheduled", site, couponCode, autoApply, creative, force: true,
       ...(useCustom ? { windowOverride: { eventDate: win.eventDate, startsAt: win.startsAt, endsAt: win.endsAt } } : {}),
     };
     await fetch("/api/offers", { method: "POST", body: JSON.stringify(payload) });
@@ -206,7 +229,7 @@ export default function OfferDrawer() {
 
           <div className="field">
             <label>Course</label>
-            <select className="select" value={courseId} onChange={(e) => setCourseId(e.target.value)}>
+            <select className="select" value={courseId} onChange={(e) => onCourse(e.target.value)}>
               <option value="all">All courses</option>
               {COURSES.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
@@ -258,11 +281,27 @@ export default function OfferDrawer() {
             <span>Auto-apply via link (hides the code on the banner, so it can't be scraped and shared - the discount applies from the Enroll link).</span>
           </label>
 
+          <div className="section-t">Banner text (editable)</div>
+          <div className="field"><label>Tag</label><input value={cTag} onChange={(e) => setCTag(e.target.value)} maxLength={40} /></div>
+          <div className="field"><label>Headline</label><input value={cHeadline} onChange={(e) => setCHeadline(e.target.value)} maxLength={90} /></div>
+          <div className="field">
+            <label style={{ display: "flex", justifyContent: "space-between" }}>Value line
+              <span style={{ fontWeight: 500, color: "var(--muted)", cursor: "pointer" }}><input type="checkbox" checked={showValue} onChange={(e) => setShowValue(e.target.checked)} style={{ marginRight: 5 }} />show</span>
+            </label>
+            <input value={cValue} disabled={!showValue} onChange={(e) => setCValue(e.target.value)} maxLength={70} />
+          </div>
+          <div className="field">
+            <label style={{ display: "flex", justifyContent: "space-between" }}>Button text
+              <span style={{ fontWeight: 500, color: "var(--muted)", cursor: "pointer" }}><input type="checkbox" checked={showCta} onChange={(e) => setShowCta(e.target.checked)} style={{ marginRight: 5 }} />show</span>
+            </label>
+            <input value={cCta} disabled={!showCta} onChange={(e) => setCCta(e.target.value)} maxLength={24} />
+          </div>
+
           <div className="section-t">Live preview - {PLACEHOLDERS.find((p) => p.key === placeholder)?.name}</div>
           <div style={{ maxWidth: "100%", overflow: "hidden" }}>
-            <Banner festivalKey={festivalKey} tag={fest.name + " Offer"} motivation={fest.motivation}
-              offerLabel={label} courseTm={course.tm} courseValue={courseValue(course)} code={couponCode}
-              autoApply={autoApply} format={placeFormat(placeholder)} />
+            <Banner festivalKey={festivalKey} tag={cTag} motivation={cHeadline}
+              offerLabel={label} courseTm={course.tm} courseValue={showValue ? cValue : ""} code={couponCode}
+              cta={showCta ? cCta : ""} autoApply={autoApply} format={placeFormat(placeholder)} />
           </div>
 
           {conflicts.length > 0 && (

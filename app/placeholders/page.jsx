@@ -14,9 +14,15 @@ const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 function bannerProps(o) {
   const fest = festivalByKey(o.festivalKey);
   const course = courseById(o.courseId);
+  const cr = o.creative;
   return {
-    festivalKey: o.festivalKey, tag: fest.name + " Offer", motivation: fest.motivation,
-    offerLabel: displayLabel(o.mode, o.discountPct), courseTm: course?.tm, courseValue: courseValue(course), code: o.couponCode, autoApply: !!o.autoApply,
+    festivalKey: o.festivalKey,
+    tag: cr?.tagText ?? (fest.name + " Offer"),
+    motivation: cr?.headline ?? fest.motivation,
+    offerLabel: displayLabel(o.mode, o.discountPct), courseTm: course?.tm,
+    courseValue: cr ? (cr.showValue !== false ? cr.valueLine : "") : courseValue(course),
+    code: o.couponCode, autoApply: !!o.autoApply,
+    cta: cr ? (cr.showCta !== false ? (cr.ctaText || "Enroll") : "") : undefined,
   };
 }
 
@@ -31,7 +37,9 @@ export default function Placeholders() {
   const Slot = ({ pkey, fmt }) => {
     const o = slot[pkey];
     if (!o) return <div style={{ padding: 12, textAlign: "center", color: "var(--muted)", fontSize: 12, background: "var(--surface-2)" }}>No active offer in {placeholderName(pkey)}</div>;
-    return <Banner {...bannerProps(o)} format={fmt} cta={fmt === "strip" ? "Enroll Now" : "Enroll →"} />;
+    const bp = bannerProps(o);
+    const cta = bp.cta !== undefined ? bp.cta : (fmt === "strip" ? "Enroll Now" : "Enroll →");
+    return <Banner {...bp} format={fmt} cta={cta} />;
   };
 
   return (
