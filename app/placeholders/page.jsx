@@ -12,7 +12,7 @@ const pcls = { live: "p-live", scheduled: "p-scheduled", draft: "p-draft", expir
 const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 
 function bannerProps(o) {
-  const fest = festivalByKey(o.festivalKey);
+  const fest = festivalByKey(o.festivalKey) || { name: o.name, motivation: o.creative?.headline || o.name };
   const course = courseById(o.courseId);
   const cr = o.creative;
   return {

@@ -4,13 +4,32 @@ import { useUI } from "./ui-context";
 import Banner from "./Banner";
 import { FESTIVALS, festivalByKey } from "@/lib/festivals";
 import { COURSES, courseById, courseValue } from "@/lib/catalog";
-import { PLACEHOLDERS, countryFlag } from "@/lib/config";
+import { PLACEHOLDERS, countryFlag, COUNTRIES } from "@/lib/config";
 import {
   computeWindow, defaultMode, suggestDiscount, displayLabel, priceAfter, marginOk, neutralCode,
 } from "@/lib/logic";
 
 const fmtDate = (iso) => (iso ? new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "-");
 const placeFormat = (key) => ({ course_top_bar: "thin", site_top_strip: "strip", bottom_action_bar: "strip", home_hero: "hero", popup_toast: "hero" }[key] || "hero");
+
+// Build a festival-like object for a built-in key, or a synthetic one for a custom occasion.
+function festFor(key, o) {
+  if (key === "custom") {
+    return {
+      key: "custom", name: o?.name || "Custom occasion", tier: o?.tier || "normal",
+      scope: o?.scope || "global", motivation: o?.creative?.headline || "Grow your skills",
+      countries: o?.countries || [], lead: o?.lead ?? 7, trail: o?.trail ?? 2,
+    };
+  }
+  return festivalByKey(key);
+}
+// Window (event date +/- lead/trail) for a specific date string (yyyy-mm-dd).
+function windowFromDate(dateStr, lead, trail) {
+  const d = new Date(dateStr + "T00:00:00Z");
+  const s = new Date(d); s.setUTCDate(s.getUTCDate() - lead);
+  const e = new Date(d); e.setUTCDate(e.getUTCDate() + trail);
+  return { eventDate: d.toISOString(), startsAt: s.toISOString(), endsAt: new Date(e.getTime() + 23 * 3600e3).toISOString() };
+}
 
 export default function OfferDrawer() {
   const { drawer, closeDrawer, refresh, site, toast } = useUI();
@@ -39,14 +58,23 @@ export default function OfferDrawer() {
   const [cCta, setCCta] = useState("Enroll");
   const [showValue, setShowValue] = useState(true);
   const [showCta, setShowCta] = useState(true);
+  // custom occasion (e.g. "Invensis Anniversary")
+  const [customName, setCustomName] = useState("");
+  const [customTier, setCustomTier] = useState("normal");
+  const [customScope, setCustomScope] = useState("global");
+  const [customDate, setCustomDate] = useState("");
 
   // initialize when drawer opens
   useEffect(() => {
     if (!drawer.open) return;
     const o = drawer.offer;
     const key = o?.festivalKey || "in_diwali";
-    const f = festivalByKey(key);
+    const f = festFor(key, o);
     setFestivalKey(key);
+    setCustomName(key === "custom" ? (o?.name || "") : "");
+    setCustomTier(key === "custom" ? (o?.tier || "normal") : "normal");
+    setCustomScope(key === "custom" ? (o?.scope || "global") : "global");
+    setCustomDate(key === "custom" && o?.eventDate ? o.eventDate.slice(0, 10) : "");
     setYear(o?.year || 2026);
     setMode(o?.mode || defaultMode(f.tier));
     setDiscountPct(o?.discountPct ?? suggestDiscount(f.tier, o?.mode || defaultMode(f.tier)));
@@ -75,10 +103,22 @@ export default function OfferDrawer() {
     setShowCta(cr ? cr.showCta !== false : true);
   }, [drawer.open, drawer.offer]);
 
-  const fest = festivalByKey(festivalKey);
+  const isCustom = festivalKey === "custom";
+  const fest = isCustom
+    ? { key: "custom", name: customName || "Custom occasion", tier: customTier, scope: customScope, motivation: cHeadline || "Grow your skills", countries }
+    : festivalByKey(festivalKey);
 
   // when festival changes (user action), reset dependent defaults
   function onFestival(key) {
+    if (key === "custom") {
+      const m = defaultMode(customTier);
+      setFestivalKey("custom");
+      setMode(m); setDiscountPct(suggestDiscount(customTier, m));
+      setLead(7); setTrail(2); setCountries([]);
+      setCTag("Special Offer"); setCHeadline("Grow your skills");
+      setCouponCode(neutralCode({ name: customName || "OFFER" }, year));
+      return;
+    }
     const f = festivalByKey(key);
     const m = defaultMode(f.tier);
     setFestivalKey(key);
@@ -95,6 +135,16 @@ export default function OfferDrawer() {
     setCourseId(id);
     setCValue(courseValue(courseById(id)));
   }
+  function onCustomTier(t) {
+    setCustomTier(t);
+    const m = defaultMode(t);
+    setMode(m); setDiscountPct(suggestDiscount(t, m));
+  }
+  function onCustomName(name) {
+    setCustomName(name);
+    setCouponCode(neutralCode({ name: name || "OFFER" }, year));
+    setCTag((name || "Special") + " Offer");
+  }
   function onYear(y) {
     setYear(y);
     setCouponCode(neutralCode(fest, y));
@@ -105,7 +155,10 @@ export default function OfferDrawer() {
   }
 
   const course = courseById(courseId);
-  const compWin = useMemo(() => computeWindow(fest, year, lead, trail), [fest, year, lead, trail]);
+  const compWin = useMemo(
+    () => (isCustom ? (customDate ? windowFromDate(customDate, lead, trail) : null) : computeWindow(fest, year, lead, trail)),
+    [isCustom, customDate, fest, year, lead, trail]
+  );
   const win = (customDates && startDate && endDate)
     ? {
         eventDate: new Date(endDate + "T00:00:00Z").toISOString(),
@@ -118,15 +171,17 @@ export default function OfferDrawer() {
   const current = Math.round(course.price * 0.8);
   const floorOk = marginOk(course.price, festPrice);
   const useCustom = customDates && startDate && endDate;
+  const passWindow = (isCustom || useCustom) && win && win.startsAt;
   const creative = { tagText: cTag, headline: cHeadline, valueLine: cValue, ctaText: cCta, showValue, showCta };
+  const customFields = isCustom ? { customName, customTier, customScope, customCountries: countries } : {};
 
   async function save(targetStatus) {
     setSaving(true);
     setConflicts([]);
     const payload = {
       festivalKey, year, mode, discountPct, courseId, placeholder, lead, trail, countries,
-      status: targetStatus, site, couponCode, autoApply, creative,
-      ...(useCustom ? { windowOverride: { eventDate: win.eventDate, startsAt: win.startsAt, endsAt: win.endsAt } } : {}),
+      status: targetStatus, site, couponCode, autoApply, creative, ...customFields,
+      ...(passWindow ? { windowOverride: { eventDate: win.eventDate, startsAt: win.startsAt, endsAt: win.endsAt } } : {}),
     };
     try {
       if (editing?.id) {
@@ -157,8 +212,8 @@ export default function OfferDrawer() {
     setSaving(true);
     const payload = {
       festivalKey, year, mode, discountPct, courseId, placeholder, lead, trail, countries,
-      status: "scheduled", site, couponCode, autoApply, creative, force: true,
-      ...(useCustom ? { windowOverride: { eventDate: win.eventDate, startsAt: win.startsAt, endsAt: win.endsAt } } : {}),
+      status: "scheduled", site, couponCode, autoApply, creative, ...customFields, force: true,
+      ...(passWindow ? { windowOverride: { eventDate: win.eventDate, startsAt: win.startsAt, endsAt: win.endsAt } } : {}),
     };
     await fetch("/api/offers", { method: "POST", body: JSON.stringify(payload) });
     refresh(); toast("Offer scheduled"); closeDrawer(); setSaving(false);
@@ -184,11 +239,37 @@ export default function OfferDrawer() {
           <div className="field">
             <label>Festival / occasion</label>
             <select className="select" value={festivalKey} onChange={(e) => onFestival(e.target.value)}>
+              <option value="custom">+ Custom occasion (e.g. Invensis Anniversary)</option>
               {FESTIVALS.map((f) => (
                 <option key={f.key} value={f.key}>{f.name} - {f.tier === "major" ? "Major" : "Normal"}{f.scope === "global" ? " (Global)" : ""}</option>
               ))}
             </select>
           </div>
+
+          {isCustom && (
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+              <div className="field" style={{ flex: "2 1 200px" }}>
+                <label>Occasion name</label>
+                <input value={customName} onChange={(e) => onCustomName(e.target.value)} placeholder="e.g. Invensis Anniversary" maxLength={40} />
+              </div>
+              <div className="field" style={{ flex: "1 1 110px" }}>
+                <label>Tier</label>
+                <select className="select" value={customTier} onChange={(e) => onCustomTier(e.target.value)}>
+                  <option value="major">Major</option><option value="normal">Normal</option>
+                </select>
+              </div>
+              <div className="field" style={{ flex: "1 1 130px" }}>
+                <label>Scope</label>
+                <select className="select" value={customScope} onChange={(e) => { setCustomScope(e.target.value); if (e.target.value === "global") setCountries([]); }}>
+                  <option value="global">Global</option><option value="country">Countries</option>
+                </select>
+              </div>
+              <div className="field" style={{ flex: "1 1 150px" }}>
+                <label>Occasion date</label>
+                <input type="date" value={customDate} onChange={(e) => setCustomDate(e.target.value)} />
+              </div>
+            </div>
+          )}
 
           <div style={{ display: "flex", gap: 10 }}>
             <div className="field" style={{ flex: 1 }}>
@@ -217,12 +298,13 @@ export default function OfferDrawer() {
               <div className="chips"><span className="chip-c">🌍 Global - everyone</span></div>
             ) : (
               <div className="chips">
-                {(fest.countries || []).map((c) => (
+                {(isCustom ? COUNTRIES.map((c) => c.code) : (fest.countries || [])).map((c) => (
                   <span key={c} className={"chip-c" + (countries.includes(c) ? "" : " off")}
                     onClick={() => setCountries((prev) => prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c])}>
                     {countryFlag(c)} {c}
                   </span>
                 ))}
+                {isCustom && countries.length === 0 && <span className="cell-sub">Pick at least one country</span>}
               </div>
             )}
           </div>
