@@ -48,7 +48,7 @@ export default function Calendar() {
   const seen = new Set();
   curated.forEach((x) => {
     seen.add(x.f.name.toLowerCase());
-    (byDay[x.dt.d] = byDay[x.dt.d] || []).push({ key: x.f.key, name: x.f.name, tier: x.f.tier, festival: true });
+    (byDay[x.dt.d] = byDay[x.dt.d] || []).push({ key: x.f.key, name: x.f.name, tier: x.f.tier, festival: true, global: x.f.scope === "global" });
   });
   // Merge public holidays for the selected country (skip duplicates of curated)
   if (isCode(country)) {
@@ -103,9 +103,9 @@ export default function Calendar() {
                 <div className="cal-num">{d}</div>
                 {(byDay[d] || []).map((ev, k) => (
                   <button key={k} className={`cal-ev ev-${ev.tier}${ev.festival && booked.has(ev.key) ? " booked" : ""}`}
-                    title={ev.public ? "Public holiday - create an auto offer" : booked.has(ev.key) ? "Offer already booked" : "Create offer"}
+                    title={ev.public ? "Public holiday - create an auto offer" : ev.global ? "Global festival - runs in all countries" : booked.has(ev.key) ? "Offer already booked" : "Create offer"}
                     onClick={() => openDrawer(ev.festival ? { festivalKey: ev.key, year } : null)}>
-                    {ev.public ? "📅 " : ""}{ev.name}
+                    {ev.public ? "📅 " : ev.global ? "🌍 " : ""}{ev.name}
                   </button>
                 ))}
               </>}
@@ -116,6 +116,7 @@ export default function Calendar() {
       <div className="legend">
         <span><span className="tier t-major">Major</span> 5-10% extra (on top of the standing 20%)</span>
         <span><span className="tier t-normal">Normal</span> 10-15% (re-themed 20%)</span>
+        <span>🌍 global festival (runs in all countries)</span>
         <span>📅 public holiday (auto-imported for the selected country)</span>
         <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><span style={{ width: 14, height: 10, borderRadius: 3, outline: "2px solid var(--good)", outlineOffset: -2, display: "inline-block", background: "var(--info-bg)" }} /> already has an offer</span>
       </div>
