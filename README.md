@@ -44,8 +44,14 @@ Invensis app and `xapi` backend.
     copy, coupon, discount and auto-schedule; ready to review and Schedule.
   - Plus the searchable motivation library, course value lines and localization-tone reference.
 - **Placeholders** - the five on-site slots shown in a mock website, filled by your active offers.
-- **Analytics** and **Settings** - KPIs and charts; discount policy, margin floor, sites, geo source,
-  and a master kill switch (all interactive and persisted).
+  Viewing the page records an impression for each live banner, and clicking one records a click, so the
+  analytics reflect real usage.
+- **Analytics** - tracked per event and rolled up daily, with a **date-range filter** (last 7 / 30 / 90
+  days / all time) for real trends: impressions/CTR, redemptions and estimated discounted revenue, an
+  "impressions over time" chart, breakdowns by offer / country / placeholder, and a per-offer table with
+  CSV export. Metrics come from the event store, so the Dashboard and Analytics agree.
+- **Settings** - discount policy, margin floor, sites, geo source, and a master kill switch (all
+  interactive and persisted). "Reset demo data" reseeds offers, coupons and the 90-day event history.
 - Light and dark themes, keyboard focus states, and responsive down to phone width.
 
 ## Core rules (locked product decisions)
@@ -99,15 +105,17 @@ npm run start   # run the production build
   ephemeral** - it re-seeds on cold starts and is not shared across instances. Fine for a demo, but a
   cold start can make Campaigns/Coupons look momentarily empty.
 - **Database configured (recommended for production):** set `POSTGRES_URL` (or `DATABASE_URL`) and the
-  store uses Postgres instead - data persists and is shared across instances. Offers/coupons are kept
-  as JSONB, so no column migration is needed; the schema and demo seed are created automatically on
-  first run.
+  store uses Postgres instead - data persists and is shared across instances. Offers/coupons/templates
+  are kept as JSONB and analytics events in a typed `events` table; no manual migration is needed - the
+  schema and demo seed (including the 90-day event history) are created automatically on first run.
 
 **Turn on real persistence on Vercel:**
 
 1. In the Vercel project, add a **Postgres** integration (Storage tab -> Create -> Postgres/Neon).
    Vercel sets `POSTGRES_URL` on the project automatically.
-2. Redeploy. On first request the app creates the `offers` / `coupons` tables and seeds the demo data.
+2. Redeploy. On first request the app creates the tables and seeds the demo data. If the database was
+   already seeded before analytics events were added, click **Settings -> Reset demo data** once to
+   populate the `events` table.
 3. No code change is required - the same API routes and UI work against either backend.
 
 Locally, copy `.env.example` to `.env.local` and paste a Neon connection string to develop against a
@@ -128,7 +136,8 @@ banner-studio-app/
     placeholders/       On-site slot mockups
     analytics/          KPIs + charts
     settings/           Policy, guardrails, kill switch
-    api/                offers, offers/[id], coupons, coupons/validate, templates, templates/[id], holidays, reset
+    api/                offers, offers/[id], coupons, coupons/validate, templates, templates/[id],
+                        events, holidays, reset
     globals.css         Design system (light + dark tokens)
   components/           Sidebar, Topbar, OfferDrawer, Banner, Shell, ui-context, data hooks
   lib/                  config, catalog (courses), festivals, logic (scheduling/pricing/coupons),
@@ -142,21 +151,22 @@ banner-studio-app/
 - `GET/POST /api/offers`, `GET/PUT/DELETE /api/offers/:id` - offer CRUD (POST does an overlap check).
 - `GET /api/coupons`, `POST /api/coupons/validate` - list and server-side validation (site + country + window).
 - `GET/POST /api/templates`, `DELETE /api/templates/:id` - saved content templates (POST validates the festival).
+- `GET/POST /api/events` - analytics event rollups; GET lists them, POST ingests one impression/click/redemption into the current day's bucket.
 - `GET /api/holidays?country=IN&year=2026` - public holidays (Nager.Date + curated fallback).
-- `POST /api/reset` - reseed the demo data.
+- `POST /api/reset` - reseed the demo data (offers, coupons, templates and the 90-day event history).
 
 ---
 
 ## Roadmap (next)
 
 Delivered since v1: pluggable Postgres persistence; editable Banner Editor; auto-apply coupon links;
-duplicate / clone-to-next-year; and the Content Templates suite (generation, linter, localization,
-bulk, saved templates, campaign-kit -> Create Offer).
+duplicate / clone-to-next-year; the Content Templates suite (generation, linter, localization, bulk,
+saved templates, campaign-kit -> Create Offer); and per-event analytics with date-range filtering,
+trends and CSV export.
 
 Still open:
 
 - Bulk-create offers across countries in one action (bulk copy generation already ships).
-- Real analytics from stored impression/click/redemption data, with CSV export.
 - Countdown banners, blackout dates, and A/B copy variants.
 - Auth and a publish-approval gate (deferred to just before go-live).
 

@@ -17,8 +17,8 @@ automatically by country and date.
 - Festival Calendar - year + month + any country; global festivals marked worldwide; country festivals tagged with country codes; public holidays auto-imported (Nager.Date + curated fallback); booked indicator; next/prev month.
 - Coupons - KPI tiles, a live coupon tester, inline code editing, copy, status filters, auto-apply tag.
 - Content Templates - a full copy-authoring workspace: live generation of copy for all 5 slots with per-slot character budgets and auto-compact fallback; a brand-rule linter (no country/price/em dash) with one-click Fix; region localization (festival greeting + credibility hook, never names the country); bulk generate across many courses with Copy all + Export CSV; saved templates (persisted); and a campaign kit that pushes a launch-ready, prefilled offer into Create Offer. Plus the searchable motivation library, course value lines and localization-tone reference.
-- Placeholders - the five on-site slots shown in a mock website, filled by active offers.
-- Analytics - KPIs and charts (sample data, labelled).
+- Placeholders - the five on-site slots shown in a mock website, filled by active offers; viewing records an impression per live banner and clicking records a click (real tracking).
+- Analytics - computed from tracked events with a date-range filter (7 / 30 / 90 days / all): impressions, CTR, redemptions and estimated discounted revenue, an impressions-over-time trend, breakdowns by offer / country / placeholder, and a per-offer table with CSV export.
 - Settings - discount policy, 20%-off reconciliation, margin floor, sites, kill switch (all functional and persisted).
 
 ### Create / Edit offer (the core screen)
@@ -48,6 +48,7 @@ automatically by country and date.
 - Removed the Edstellar site switcher (single-site build for now); added Teachers' Day (India, Sep 5).
 - Persistence made pluggable (Postgres / Neon); fixed the cold-start "empty Campaigns/Coupons" flicker by retrying the data fetch with backoff instead of silently rendering an empty list.
 - Content Templates rebuilt from a reference page into a generator: live copy for all placeholders, character budgets + compact fallback, brand-rule linter, region localization, bulk generate + CSV, saved templates, and campaign-kit -> Create Offer.
+- Analytics moved from sample figures to real data: first computed live from offers + coupons (Dashboard too), then backed by a per-event tracking layer. Events are stored as daily rollups (per offer / day / country), ingested via `POST /api/events` (impressions and clicks fire from the Placeholders page), and the Analytics page filters them by date range for real trends, with CSV export. The 90-day demo history is seeded so ranges reconcile with the offer totals.
 
 ---
 
@@ -92,5 +93,5 @@ automatically by country and date.
 - Persistence is now pluggable: set `POSTGRES_URL` (Vercel Postgres/Neon) and offers persist and are
   shared across instances; unset, it uses the ephemeral file/mock store. Cold-start empty flicker fixed
   on the client (retry-with-backoff) so a slow first request shows "Loading…", not a false empty list.
-- Analytics figures are sample; they become real once event tracking lands on top of the DB.
-- Remaining backlog: save-as-template, bulk-create, countdown banners, blackout dates, CSV export, approval step, A/B variants.
+- Analytics are real: per-event tracking with daily rollups, date-range filtering and CSV export. The demo history is seeded across 90 days; live events accrue as the app is used.
+- Remaining backlog: bulk-create across countries, countdown banners, blackout dates, an approval step, and A/B variants.
