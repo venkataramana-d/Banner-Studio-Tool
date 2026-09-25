@@ -1,11 +1,14 @@
 "use client";
-import { useOffers } from "@/components/data";
+import { useOffers, useCoupons } from "@/components/data";
 import { useUI } from "@/components/ui-context";
 import { FESTIVALS, resolveFestivalDate } from "@/lib/festivals";
 import { countryFlag } from "@/lib/config";
-import { displayLabel } from "@/lib/logic";
+import { courseById } from "@/lib/catalog";
+import { displayLabel, priceAfter } from "@/lib/logic";
 import { themeFor } from "@/components/banner-theme";
 import Link from "next/link";
+
+const money = (v) => (v >= 1000 ? `$${(v / 1000).toFixed(v >= 100000 ? 0 : 1)}K` : `$${Math.round(v)}`);
 
 function Bars({ data }) {
   const max = Math.max(...data.map((d) => d[1]), 1);
@@ -24,8 +27,9 @@ function Bars({ data }) {
 
 export default function Dashboard() {
   const offers = useOffers();
+  const coupons = useCoupons();
   const { openDrawer, search } = useUI();
-  if (!offers) return <div className="empty">Loading…</div>;
+  if (!offers || !coupons) return <div className="empty">Loading…</div>;
 
   const q = (search || "").toLowerCase();
   const live = offers.filter((o) => o.status === "live");
@@ -33,6 +37,28 @@ export default function Dashboard() {
   const impressions = offers.reduce((s, o) => s + (o.impressions || 0), 0);
   const clicks = offers.reduce((s, o) => s + (o.clicks || 0), 0);
   const ctr = impressions ? ((clicks / impressions) * 100).toFixed(1) : "0.0";
+
+  // Real redemptions + estimated discounted revenue (offers joined to their coupons).
+  const redByOffer = {};
+  coupons.forEach((c) => { redByOffer[c.offerId] = (redByOffer[c.offerId] || 0) + (c.redeemed || 0); });
+  const redeemed = Object.values(redByOffer).reduce((s, v) => s + v, 0);
+  const revenue = offers.reduce((s, o) => {
+    const course = courseById(o.courseId);
+    const festPrice = course ? priceAfter(course.price, o.mode, o.discountPct) : 0;
+    return s + (redByOffer[o.id] || 0) * festPrice;
+  }, 0);
+
+  const redByCountry = {};
+  offers.forEach((o) => {
+    const r = redByOffer[o.id] || 0;
+    if (r <= 0) return;
+    const cs = o.countries || [];
+    if (cs.length) { const each = r / cs.length; cs.forEach((c) => { redByCountry[c] = (redByCountry[c] || 0) + each; }); }
+    else redByCountry.GLB = (redByCountry.GLB || 0) + r;
+  });
+  const countryBars = Object.entries(redByCountry)
+    .map(([c, v]) => [`${c === "GLB" ? "🌍 Global" : `${countryFlag(c)} ${c}`}`, Math.round(v), Math.round(v).toLocaleString()])
+    .sort((a, b) => b[1] - a[1]).slice(0, 5);
 
   // When searching, the left panel becomes "matching offers" across all statuses.
   const matching = q ? offers.filter((o) => (o.name + " " + o.courseName + " " + o.couponCode).toLowerCase().includes(q)) : null;
@@ -68,10 +94,10 @@ export default function Dashboard() {
       <div className="kpis">
         <div className="kpi"><div className="k-label">Live now</div><div className="k-val tnum">{live.length}</div><div className="k-trend up">auto-running</div></div>
         <div className="kpi"><div className="k-label">Scheduled</div><div className="k-val tnum">{scheduled.length}</div><div className="k-trend up">queued</div></div>
-        <div className="kpi"><div className="k-label">Impressions</div><div className="k-val tnum">{(impressions / 1000).toFixed(0)}K</div><div className="k-trend up">▲ 18%</div></div>
-        <div className="kpi"><div className="k-label">Clicks</div><div className="k-val tnum">{clicks.toLocaleString()}</div><div className="k-trend up">▲ 9%</div></div>
-        <div className="kpi"><div className="k-label">Avg CTR</div><div className="k-val tnum">{ctr}%</div><div className="k-trend up">▲ 0.4pt</div></div>
-        <div className="kpi"><div className="k-label">Discounted revenue</div><div className="k-val tnum">$412K</div><div className="k-trend up">▲ 14%</div></div>
+        <div className="kpi"><div className="k-label">Impressions</div><div className="k-val tnum">{(impressions / 1000).toFixed(0)}K</div><div className="k-trend" style={{ color: "var(--muted)" }}>cumulative</div></div>
+        <div className="kpi"><div className="k-label">Clicks</div><div className="k-val tnum">{clicks.toLocaleString()}</div><div className="k-trend" style={{ color: "var(--muted)" }}>{ctr}% CTR</div></div>
+        <div className="kpi"><div className="k-label">Redemptions</div><div className="k-val tnum">{redeemed.toLocaleString()}</div><div className="k-trend" style={{ color: "var(--muted)" }}>from coupons</div></div>
+        <div className="kpi"><div className="k-label">Discounted revenue</div><div className="k-val tnum">{money(revenue)}</div><div className="k-trend" style={{ color: "var(--muted)" }}>est. from redemptions</div></div>
       </div>
       <div className="grid-2">
         <div className="card panel">
@@ -107,10 +133,10 @@ export default function Dashboard() {
         </div>
       </div>
       <div className="grid-2" style={{ marginTop: 16 }}>
-        <div className="card panel"><div className="panel-head"><h3>Redemptions by country</h3><span className="cell-sub">last 30 days</span></div>
-          <Bars data={[["🇮🇳 India", 512], ["🇺🇸 US", 348], ["🇦🇪 UAE", 214], ["🇬🇧 UK", 122], ["🇸🇬 Singapore", 50]]} /></div>
-        <div className="card panel"><div className="panel-head"><h3>Impressions by placeholder</h3><span className="cell-sub">last 30 days</span></div>
-          <Bars data={placeBars.length ? placeBars : [["No data", 0, "0"]]} /></div>
+        <div className="card panel"><div className="panel-head"><h3>Redemptions by country</h3></div>
+          <Bars data={countryBars.length ? countryBars : [["No redemptions yet", 0, "0"]]} /></div>
+        <div className="card panel"><div className="panel-head"><h3>Impressions by placeholder</h3></div>
+          <Bars data={placeBars.length ? placeBars : [["No impressions yet", 0, "0"]]} /></div>
       </div>
     </>
   );
