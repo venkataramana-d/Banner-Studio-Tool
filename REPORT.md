@@ -16,7 +16,7 @@ automatically by country and date.
 - Campaigns - all offers with filters (status, country, category, tier, placeholder); click a row to edit; duplicate, pause/resume, delete.
 - Festival Calendar - year + month + any country; global festivals marked worldwide; country festivals tagged with country codes; public holidays auto-imported (Nager.Date + curated fallback); booked indicator; next/prev month.
 - Coupons - KPI tiles, a live coupon tester, inline code editing, copy, status filters, auto-apply tag.
-- Content Templates - template builder with live preview and copy text, copy formulas, searchable motivation library, course value lines, localization tone.
+- Content Templates - a full copy-authoring workspace: live generation of copy for all 5 slots with per-slot character budgets and auto-compact fallback; a brand-rule linter (no country/price/em dash) with one-click Fix; region localization (festival greeting + credibility hook, never names the country); bulk generate across many courses with Copy all + Export CSV; saved templates (persisted); and a campaign kit that pushes a launch-ready, prefilled offer into Create Offer. Plus the searchable motivation library, course value lines and localization-tone reference.
 - Placeholders - the five on-site slots shown in a mock website, filled by active offers.
 - Analytics - KPIs and charts (sample data, labelled).
 - Settings - discount policy, 20%-off reconciliation, margin floor, sites, kill switch (all functional and persisted).
@@ -39,7 +39,15 @@ automatically by country and date.
 - Action toasts on every create/edit/delete/pause/coupon-edit/reset.
 - Light and dark themes, keyboard focus states, aria labels, responsive to phone width.
 - Top-bar search filters Dashboard, Campaigns and Coupons; persists across reloads.
-- Mock data layer with a seed + reset; Vercel-safe (writes to a temp dir on serverless).
+- Pluggable persistence: a store facade selects Postgres (Vercel Postgres / Neon) when a connection string is set, else a file/mock store; the same API routes and UI work against either. Offers, coupons and templates persist across sessions and instances when a database is configured.
+
+---
+
+## Added after v1
+
+- Removed the Edstellar site switcher (single-site build for now); added Teachers' Day (India, Sep 5).
+- Persistence made pluggable (Postgres / Neon); fixed the cold-start "empty Campaigns/Coupons" flicker by retrying the data fetch with backoff instead of silently rendering an empty list.
+- Content Templates rebuilt from a reference page into a generator: live copy for all placeholders, character budgets + compact fallback, brand-rule linter, region localization, bulk generate + CSV, saved templates, and campaign-kit -> Create Offer.
 
 ---
 

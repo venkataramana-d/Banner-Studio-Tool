@@ -27,8 +27,22 @@ Invensis app and `xapi` backend.
   Booked festivals are flagged so offers never double-book a placeholder.
 - **Coupons** - neutral codes (no country in the code), scoped to site + country + time window, with
   a live coupon tester that shows the server-side enforcement.
-- **Content Templates** - a template builder with live preview and copy text, copy formulas, a
-  searchable motivation library, course value lines, and localization tone.
+- **Content Templates** - a full copy-authoring workspace, not just a reference:
+  - **Generated copy for all 5 slots at once** - real filled copy (motivation + offer + course + code +
+    date), each with a live character counter against the slot's budget; a line that overflows switches
+    to a compact version automatically.
+  - **Brand-rule linter** on every line (no country name, no price, no em dash) with a one-click Fix, so
+    copy stays motivation-led by construction.
+  - **Localization** - a region selector enriches copy with a festival greeting (Happy Diwali, Eid
+    Mubarak...) and a per-region credibility hook (PDUs, CPD-aligned, KHDA-approved, globally
+    recognized...), while never naming the country.
+  - **Bulk generate** - the selected festival x many courses x all placeholders in one table, with Copy
+    all and Export CSV for the whole campaign.
+  - **Saved templates** - persist a festival + course + region + placeholder combo and reload it in one
+    click (stored via the same backend as offers).
+  - **Campaign kit -> Create Offer** - one click opens Create Offer prefilled with the localized banner
+    copy, coupon, discount and auto-schedule; ready to review and Schedule.
+  - Plus the searchable motivation library, course value lines and localization-tone reference.
 - **Placeholders** - the five on-site slots shown in a mock website, filled by your active offers.
 - **Analytics** and **Settings** - KPIs and charts; discount policy, margin floor, sites, geo source,
   and a master kill switch (all interactive and persisted).
@@ -114,10 +128,12 @@ banner-studio-app/
     placeholders/       On-site slot mockups
     analytics/          KPIs + charts
     settings/           Policy, guardrails, kill switch
-    api/                offers, offers/[id], coupons, coupons/validate, holidays, reset
+    api/                offers, offers/[id], coupons, coupons/validate, templates, templates/[id], holidays, reset
     globals.css         Design system (light + dark tokens)
   components/           Sidebar, Topbar, OfferDrawer, Banner, Shell, ui-context, data hooks
-  lib/                  config, catalog (courses), festivals, logic (scheduling/pricing/coupons), store
+  lib/                  config, catalog (courses), festivals, logic (scheduling/pricing/coupons),
+                        content (copy engine: tokens, localization, bulk, kit), seed (shared builders),
+                        store (facade) + store-file / store-db backends
   public/               invensis-logo.svg
 ```
 
@@ -125,6 +141,7 @@ banner-studio-app/
 
 - `GET/POST /api/offers`, `GET/PUT/DELETE /api/offers/:id` - offer CRUD (POST does an overlap check).
 - `GET /api/coupons`, `POST /api/coupons/validate` - list and server-side validation (site + country + window).
+- `GET/POST /api/templates`, `DELETE /api/templates/:id` - saved content templates (POST validates the festival).
 - `GET /api/holidays?country=IN&year=2026` - public holidays (Nager.Date + curated fallback).
 - `POST /api/reset` - reseed the demo data.
 
@@ -132,10 +149,15 @@ banner-studio-app/
 
 ## Roadmap (next)
 
-- Fully editable Banner Editor with show/hide toggles for every element.
-- Auto-apply coupon links (no visible code) to reduce leakage.
-- Duplicate / clone-to-next-year / bulk-create across countries, and save-as-template.
+Delivered since v1: pluggable Postgres persistence; editable Banner Editor; auto-apply coupon links;
+duplicate / clone-to-next-year; and the Content Templates suite (generation, linter, localization,
+bulk, saved templates, campaign-kit -> Create Offer).
+
+Still open:
+
+- Bulk-create offers across countries in one action (bulk copy generation already ships).
 - Real analytics from stored impression/click/redemption data, with CSV export.
+- Countdown banners, blackout dates, and A/B copy variants.
 - Auth and a publish-approval gate (deferred to just before go-live).
 
 ## Notes
