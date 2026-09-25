@@ -186,6 +186,7 @@ tbody tr:hover{background:var(--surface-2)}
 .bn .bn-row{display:flex;align-items:center;gap:7px;margin-top:5px;flex-wrap:wrap;position:relative;z-index:1}
 .bn .bn-off{font-family:"Sora";font-weight:700;font-size:13px}
 .bn .bn-code{background:rgba(255,255,255,.18);border:1px dashed rgba(255,255,255,.55);font-weight:700;font-size:10.5px;padding:3px 8px;border-radius:6px;letter-spacing:.02em}
+.bn .bn-count{background:rgba(0,0,0,.22);font-weight:700;font-size:10.5px;padding:3px 8px;border-radius:6px;white-space:nowrap}
 .bn .bn-cta{background:var(--cta);color:#fff;font-weight:700;font-size:10.5px;padding:4px 10px;border-radius:6px}
 .bn .bn-emoji{position:absolute;right:8px;top:4px;font-size:46px;opacity:.22;line-height:1;z-index:0}
 .th-diwali{background:linear-gradient(120deg,#3E0F53,#B4256B 58%,#F2762E)}

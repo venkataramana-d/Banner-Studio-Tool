@@ -2,17 +2,19 @@
 import { themeFor } from "./banner-theme";
 
 export default function Banner({
-  festivalKey, tag, motivation, offerLabel, courseTm, courseValue, code, cta = "Enroll", format = "hero", autoApply = false,
+  festivalKey, tag, motivation, offerLabel, courseTm, courseValue, code, cta = "Enroll", format = "hero", autoApply = false, countdown = "",
 }) {
   const [theme, emoji] = themeFor(festivalKey);
   // Never show a country on the banner - strip any parenthetical (e.g. "(India)").
   tag = (tag || "").replace(/\s*\([^)]*\)/g, "").replace(/\s+/g, " ").trim();
+  const count = countdown ? <span className="bn-count">⏳ {countdown}</span> : null;
 
   if (format === "strip") {
     return (
       <div className={`bn strip ${theme}`}>
         <span style={{ minWidth: 0 }}>{tag ? `${tag} - ` : ""}{motivation}</span>
         {offerLabel && <span className="bn-off">{offerLabel}</span>}
+        {count}
         {!autoApply && code && <span className="bn-code">{code}</span>}
       </div>
     );
@@ -25,6 +27,7 @@ export default function Banner({
           <div className="bn-tag">{tag}</div>
           <div className="bn-h">{motivation}{offerLabel ? ` - ${offerLabel} ${courseTm || ""}` : ""}</div>
         </div>
+        {count}
         {!autoApply && code && <span className="bn-code">{code}</span>}
       </div>
     );
@@ -37,6 +40,7 @@ export default function Banner({
       <div className="bn-h">{motivation}</div>
       <div className="bn-s">{offerLabel} {courseTm}{courseValue ? ` · ${courseValue}` : ""}</div>
       <div className="bn-row">
+        {count}
         {!autoApply && code && <span className="bn-code">{code}</span>}
         {cta && <span className="bn-cta">{cta}</span>}
       </div>

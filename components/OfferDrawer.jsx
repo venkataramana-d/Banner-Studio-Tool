@@ -6,7 +6,7 @@ import { FESTIVALS, festivalByKey } from "@/lib/festivals";
 import { COURSES, courseById, courseValue } from "@/lib/catalog";
 import { PLACEHOLDERS, countryFlag, COUNTRIES } from "@/lib/config";
 import {
-  computeWindow, defaultMode, suggestDiscount, displayLabel, priceAfter, marginOk, neutralCode,
+  computeWindow, defaultMode, suggestDiscount, displayLabel, priceAfter, marginOk, neutralCode, countdownText,
 } from "@/lib/logic";
 
 const fmtDate = (iso) => (iso ? new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "-");
@@ -58,6 +58,7 @@ export default function OfferDrawer() {
   const [cCta, setCCta] = useState("Enroll");
   const [showValue, setShowValue] = useState(true);
   const [showCta, setShowCta] = useState(true);
+  const [showCountdown, setShowCountdown] = useState(false);
   // custom occasion (e.g. "Invensis Anniversary")
   const [customName, setCustomName] = useState("");
   const [customTier, setCustomTier] = useState("normal");
@@ -101,6 +102,7 @@ export default function OfferDrawer() {
     setCCta(cr?.ctaText || "Enroll");
     setShowValue(cr ? cr.showValue !== false : true);
     setShowCta(cr ? cr.showCta !== false : true);
+    setShowCountdown(cr ? !!cr.countdown : false);
   }, [drawer.open, drawer.offer]);
 
   const isCustom = festivalKey === "custom";
@@ -172,7 +174,7 @@ export default function OfferDrawer() {
   const floorOk = marginOk(course.price, festPrice);
   const useCustom = customDates && startDate && endDate;
   const passWindow = (isCustom || useCustom) && win && win.startsAt;
-  const creative = { tagText: cTag, headline: cHeadline, valueLine: cValue, ctaText: cCta, showValue, showCta };
+  const creative = { tagText: cTag, headline: cHeadline, valueLine: cValue, ctaText: cCta, showValue, showCta, countdown: showCountdown };
   const customFields = isCustom ? { customName, customTier, customScope, customCountries: countries } : {};
 
   const approvalToast = (approval) => (approval === "pending" ? "Submitted for approval" : approval === "draft" ? "Draft saved" : editing?.id ? "Offer updated" : "Offer saved");
@@ -392,12 +394,17 @@ export default function OfferDrawer() {
             </label>
             <input value={cCta} disabled={!showCta} onChange={(e) => setCCta(e.target.value)} maxLength={24} />
           </div>
+          <label style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 12.5, color: "var(--muted)", cursor: "pointer" }}>
+            <input type="checkbox" checked={showCountdown} onChange={(e) => setShowCountdown(e.target.checked)} />
+            Show a live countdown on the banner{win?.endsAt ? ` (${countdownText(win.endsAt) || "ended"})` : ""}
+          </label>
 
           <div className="section-t">Live preview - {PLACEHOLDERS.find((p) => p.key === placeholder)?.name}</div>
           <div style={{ maxWidth: "100%", overflow: "hidden" }}>
             <Banner festivalKey={festivalKey} tag={cTag} motivation={cHeadline}
               offerLabel={label} courseTm={course.tm} courseValue={showValue ? cValue : ""} code={couponCode}
-              cta={showCta ? cCta : ""} autoApply={autoApply} format={placeFormat(placeholder)} />
+              cta={showCta ? cCta : ""} autoApply={autoApply} format={placeFormat(placeholder)}
+              countdown={showCountdown ? (countdownText(win?.endsAt) || "") : ""} />
           </div>
 
           {conflicts.length > 0 && (

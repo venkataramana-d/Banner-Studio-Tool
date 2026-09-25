@@ -6,7 +6,7 @@ import Banner from "@/components/Banner";
 import { festivalByKey } from "@/lib/festivals";
 import { courseById, courseValue } from "@/lib/catalog";
 import { PLACEHOLDERS, placeholderName } from "@/lib/config";
-import { displayLabel } from "@/lib/logic";
+import { displayLabel, countdownText } from "@/lib/logic";
 
 const placeFormat = (key) => ({ course_top_bar: "thin", site_top_strip: "strip", bottom_action_bar: "strip", home_hero: "hero", popup_toast: "hero" }[key] || "hero");
 const pcls = { live: "p-live", scheduled: "p-scheduled", draft: "p-draft", expired: "p-expired", paused: "p-paused" };
@@ -24,6 +24,7 @@ function bannerProps(o) {
     courseValue: cr ? (cr.showValue !== false ? cr.valueLine : "") : courseValue(course),
     code: o.couponCode, autoApply: !!o.autoApply,
     cta: cr ? (cr.showCta !== false ? (cr.ctaText || "Enroll") : "") : undefined,
+    countdown: cr?.countdown ? (countdownText(o.endsAt) || "") : "",
   };
 }
 
