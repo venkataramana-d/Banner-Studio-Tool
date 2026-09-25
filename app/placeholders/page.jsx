@@ -73,7 +73,7 @@ export default function Placeholders() {
         <div className="sm-slot"><span className="sm-tag">3 · Home / category hero</span>
           <div className="sm-hero">
             <Slot pkey="home_hero" fmt="hero" />
-            <div style={{ border: "1px dashed var(--line)", borderRadius: 11, display: "grid", placeItems: "center", color: "var(--muted)", fontSize: 12, background: "var(--surface-2)" }}>🖼️ Festival image</div>
+            <div className="sm-heroimg"><span className="sm-heroimg-ic">🖼️</span><span>Festival image</span></div>
           </div>
         </div>
         <div className="sm-content"><span className="l" style={{ width: "70%" }} /><span className="l" /><span className="l" style={{ width: "88%" }} /><span className="l" style={{ width: "60%" }} /></div>
@@ -93,10 +93,10 @@ export default function Placeholders() {
                 {o ? <span className={"pill " + pcls[o.status]}>{cap(o.status)}</span> : <span className="pill p-draft">Empty</span>}
               </div>
               <p style={{ color: "var(--muted)", fontSize: 12.5, margin: 0 }}>{p.desc}</p>
-              <div onClick={() => { if (o) track("click", o.id, eventCountry(o), o.placeholder); }} style={{ cursor: o ? "pointer" : "default" }} title={o ? "Simulate a tracked banner click" : undefined}>
+              <div className="slot-frame" onClick={() => { if (o) track("click", o.id, eventCountry(o), o.placeholder); }} style={{ cursor: o ? "pointer" : "default" }} title={o ? "Simulate a tracked banner click" : undefined}>
                 <Slot pkey={p.key} fmt={placeFormat(p.key)} />
               </div>
-              <div style={{ display: "flex", gap: 8, fontSize: 11.5 }}>
+              <div style={{ display: "flex", gap: 8, fontSize: 11.5, marginTop: "auto" }}>
                 <button className="mini-btn" onClick={() => o ? openDrawer(o) : openDrawer(null)}>{o ? "Edit banner" : "Add offer"}</button>
               </div>
             </div>
