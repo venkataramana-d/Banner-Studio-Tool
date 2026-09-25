@@ -1,10 +1,11 @@
 "use client";
 import { useMemo, useState } from "react";
 import { useUI } from "@/components/ui-context";
+import { useTemplates } from "@/components/data";
 import Banner from "@/components/Banner";
 import { FESTIVALS, festivalByKey } from "@/lib/festivals";
 import { COURSES, courseById, courseValue, CATEGORIES } from "@/lib/catalog";
-import { PLACEHOLDERS } from "@/lib/config";
+import { PLACEHOLDERS, placeholderName } from "@/lib/config";
 import { neutralCode, displayLabel, defaultMode, suggestDiscount } from "@/lib/logic";
 import { generateAll, generateBulk, cleanName, autofix, REGIONS, regionByKey } from "@/lib/content";
 
@@ -29,7 +30,8 @@ const infoBadge = { ...badgeBase, color: "var(--muted)", background: "var(--surf
 const countBadge = (fits) => (fits ? okBadge : warnBadge);
 
 export default function Content() {
-  const { openDrawer, toast } = useUI();
+  const { openDrawer, toast, refresh } = useUI();
+  const templates = useTemplates();
   const [festivalKey, setFestivalKey] = useState("in_diwali");
   const [courseId, setCourseId] = useState("pmp");
   const [placeholder, setPlaceholder] = useState("course_top_bar");
@@ -42,6 +44,8 @@ export default function Content() {
   const [regionKey, setRegionKey] = useState("global");
   const [bulkIds, setBulkIds] = useState(() => ["pmp", "csm", "itil4", "devops-f", "lssgb", "cobit-f"]);
   const [copiedBulk, setCopiedBulk] = useState(false);
+  const [tplName, setTplName] = useState("");
+  const [savingTpl, setSavingTpl] = useState(false);
 
   const region = regionByKey(regionKey);
   const fest = festivalByKey(festivalKey);
@@ -118,6 +122,46 @@ export default function Content() {
       g.text.length <= g.budget ? "yes" : "no", region.label,
     ])));
     downloadCsv(header, rows, `campaign-${festivalKey}-${region.key}.csv`);
+  }
+
+  // Feature 8: save / load / delete reusable templates (persisted via the store).
+  async function saveTemplate() {
+    const name = tplName.trim() || `${cleanName(fest)} · ${course.name}${region.key !== "global" ? " · " + region.label : ""}`;
+    setSavingTpl(true);
+    try {
+      const r = await fetch("/api/templates", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, festivalKey, courseId, regionKey, placeholder }),
+      });
+      if (!r.ok) throw new Error("save_failed");
+      setTplName("");
+      refresh?.();
+      toast?.("Template saved");
+    } catch {
+      toast?.("Could not save template");
+    } finally {
+      setSavingTpl(false);
+    }
+  }
+  function loadTemplate(t) {
+    setFestivalKey(t.festivalKey);
+    setCourseId(t.courseId);
+    setRegionKey(t.regionKey || "global");
+    if (t.placeholder) setPlaceholder(t.placeholder);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    toast?.(`Loaded "${t.name}"`);
+  }
+  async function removeTemplate(t) {
+    if (!window.confirm(`Delete template "${t.name}"?`)) return;
+    try {
+      const r = await fetch(`/api/templates/${t.id}`, { method: "DELETE" });
+      if (!r.ok) throw new Error("delete_failed");
+      refresh?.();
+      toast?.("Template deleted");
+    } catch {
+      toast?.("Could not delete template");
+    }
   }
 
   const library = useMemo(() => FESTIVALS.filter((f) =>
@@ -214,6 +258,40 @@ export default function Content() {
             </div>
           );
         })}
+      </div>
+
+      {/* Feature 8: saved templates */}
+      <div className="card panel" style={{ marginBottom: 18 }}>
+        <div className="panel-head">
+          <h3>Saved templates</h3>
+          <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+            <input className="select" style={{ minWidth: 200 }} placeholder={`e.g. ${cleanName(fest)} ${course.name}`} value={tplName}
+              onChange={(e) => setTplName(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") saveTemplate(); }} />
+            <button className="mini-btn" onClick={saveTemplate} disabled={savingTpl}>{savingTpl ? "Saving…" : "Save current"}</button>
+          </div>
+        </div>
+        <div className="cell-sub" style={{ marginBottom: 6 }}>
+          Save the current festival + course + region + placeholder as a reusable template. It persists and loads instantly next time.
+        </div>
+        {templates === null
+          ? <div className="cell-sub" style={{ padding: 10 }}>Loading…</div>
+          : templates.length === 0
+            ? <div className="cell-sub" style={{ padding: 10 }}>No templates yet. Set up a combo above and click Save current.</div>
+            : templates.map((t) => {
+              const tf = festivalByKey(t.festivalKey);
+              return (
+                <div className="live-row" key={t.id}>
+                  <div className="lr-main">
+                    <div className="lr-title">{t.name}</div>
+                    <div className="lr-sub">{(tf ? cleanName(tf) : t.festivalKey)} · {courseById(t.courseId)?.name || t.courseId} · {regionByKey(t.regionKey).label} · {placeholderName(t.placeholder)}</div>
+                  </div>
+                  <div style={{ display: "flex", gap: 6 }}>
+                    <button className="mini-btn" onClick={() => loadTemplate(t)}>Load</button>
+                    <button className="mini-btn" onClick={() => removeTemplate(t)}>Delete</button>
+                  </div>
+                </div>
+              );
+            })}
       </div>
 
       {/* Feature 7: bulk generate across many courses */}

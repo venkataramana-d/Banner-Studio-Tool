@@ -45,3 +45,7 @@ export function useOffers() {
 export function useCoupons() {
   return useResource("/api/coupons", (j) => j.coupons);
 }
+
+export function useTemplates() {
+  return useResource("/api/templates", (j) => j.templates);
+}
