@@ -7,7 +7,7 @@ import { FESTIVALS, festivalByKey } from "@/lib/festivals";
 import { COURSES, courseById, courseValue, CATEGORIES } from "@/lib/catalog";
 import { PLACEHOLDERS, placeholderName } from "@/lib/config";
 import { neutralCode, displayLabel, defaultMode, suggestDiscount } from "@/lib/logic";
-import { generateAll, generateBulk, buildKit, cleanName, autofix, REGIONS, regionByKey } from "@/lib/content";
+import { generateAll, generateBulk, buildKit, buildCountryKits, cleanName, autofix, REGIONS, regionByKey } from "@/lib/content";
 
 const placeFormat = (key) => ({ course_top_bar: "thin", site_top_strip: "strip", bottom_action_bar: "strip", home_hero: "hero", popup_toast: "hero" }[key] || "hero");
 
@@ -73,6 +73,23 @@ export default function Content() {
     if (!k) return;
     openDrawer(k);
     toast?.("Opening Create Offer with this kit");
+  }
+  // Bulk-create: one localized offer per target country of a country-scoped festival.
+  const countryKits = useMemo(() => buildCountryKits(festivalKey, courseId, { placeholder, year: 2026 }), [festivalKey, courseId, placeholder]);
+  const [creatingBulk, setCreatingBulk] = useState(false);
+  async function createPerCountry() {
+    if (!countryKits.length) return;
+    setCreatingBulk(true);
+    let created = 0, skipped = 0;
+    for (const k of countryKits) {
+      try {
+        const res = await fetch("/api/offers", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...k, status: "scheduled", approval: "pending" }) });
+        res.status === 201 ? created++ : skipped++;
+      } catch { skipped++; }
+    }
+    setCreatingBulk(false);
+    refresh?.();
+    toast?.(`Created ${created} offer${created !== 1 ? "s" : ""} for approval${skipped ? `, skipped ${skipped} (conflicts)` : ""}`);
   }
 
   async function writeClip(text) {
@@ -275,10 +292,17 @@ export default function Content() {
       <div className="card panel" style={{ marginBottom: 18 }}>
         <div className="panel-head">
           <h3>Campaign kit · {cleanName(fest)}</h3>
-          <button className="btn-cta" style={{ padding: "7px 12px" }} onClick={() => pushKit()}>
-            <svg width="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14M13 5l7 7-7 7" /></svg>
-            Push to Create Offer
-          </button>
+          <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+            {countryKits.length > 1 && (
+              <button className="mini-btn" onClick={createPerCountry} disabled={creatingBulk} title="Create one localized offer per target country (submitted for approval)">
+                {creatingBulk ? "Creating…" : `Create ${countryKits.length} per-country offers`}
+              </button>
+            )}
+            <button className="btn-cta" style={{ padding: "7px 12px" }} onClick={() => pushKit()}>
+              <svg width="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14M13 5l7 7-7 7" /></svg>
+              Push to Create Offer
+            </button>
+          </div>
         </div>
         <div className="cell-sub" style={{ marginBottom: 10 }}>
           One click opens Create Offer prefilled with the localized banner copy, coupon, discount and auto-schedule for <b>{course.name}</b> in the {placeholderName(placeholder)} slot ({region.label}). Review, then Schedule.

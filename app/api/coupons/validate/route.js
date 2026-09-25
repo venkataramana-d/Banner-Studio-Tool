@@ -11,7 +11,10 @@ export async function POST(req) {
   let body;
   try { body = await req.json(); } catch { return NextResponse.json({ valid: false, message: "Invalid request." }, { status: 400 }); }
   const { code, site = "invensis", country } = body || {};
-  const coupon = (await getCoupons()).find((c) => c.code === code && c.site === site);
+  // A neutral code can back several per-country offers, so pick the coupon whose
+  // scope matches this visitor's country (else a global one, else the first).
+  const cands = (await getCoupons()).filter((c) => c.code === code && c.site === site);
+  const coupon = cands.find((c) => country && c.countries?.includes(country)) || cands.find((c) => !c.countries?.length) || cands[0];
   let result = validateCoupon(coupon, { country, site });
   if (result.valid && coupon) {
     const offer = (await getOffers()).find((o) => o.id === coupon.offerId);
