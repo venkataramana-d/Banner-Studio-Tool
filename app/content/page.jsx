@@ -6,7 +6,7 @@ import { FESTIVALS, festivalByKey } from "@/lib/festivals";
 import { COURSES, courseById, courseValue, CATEGORIES } from "@/lib/catalog";
 import { PLACEHOLDERS } from "@/lib/config";
 import { neutralCode, displayLabel, defaultMode, suggestDiscount } from "@/lib/logic";
-import { generateAll, cleanName, autofix } from "@/lib/content";
+import { generateAll, generateBulk, cleanName, autofix, REGIONS, regionByKey } from "@/lib/content";
 
 const placeFormat = (key) => ({ course_top_bar: "thin", site_top_strip: "strip", bottom_action_bar: "strip", home_hero: "hero", popup_toast: "hero" }[key] || "hero");
 
@@ -39,7 +39,11 @@ export default function Content() {
   const [copiedKey, setCopiedKey] = useState(null);
   const [copiedAll, setCopiedAll] = useState(false);
   const [expanded, setExpanded] = useState(() => new Set());
+  const [regionKey, setRegionKey] = useState("global");
+  const [bulkIds, setBulkIds] = useState(() => ["pmp", "csm", "itil4", "devops-f", "lssgb", "cobit-f"]);
+  const [copiedBulk, setCopiedBulk] = useState(false);
 
+  const region = regionByKey(regionKey);
   const fest = festivalByKey(festivalKey);
   const course = courseById(courseId);
   const mode = defaultMode(fest.tier);
@@ -49,8 +53,13 @@ export default function Content() {
 
   const copyText = `${fest.motivation} ${offerLabel} ${course.tm || ""} · ${courseValue(course)} Ends soon - code ${code}.`.replace(/\s+/g, " ").trim();
 
-  // Feature 1+2: filled copy for every placeholder, with budget-aware compact fallback + lint.
-  const generated = useMemo(() => generateAll(fest, course, 2026), [fest, course]);
+  // Feature 1+2+5: filled copy for every placeholder, region-localized, budget-aware + lint.
+  const generated = useMemo(() => generateAll(fest, course, { year: 2026, region }), [fest, course, region]);
+
+  // Feature 7: bulk generation - the selected festival x chosen courses.
+  const bulkCourses = useMemo(() => bulkIds.map(courseById).filter(Boolean), [bulkIds]);
+  const bulk = useMemo(() => generateBulk(fest, bulkCourses, { year: 2026, region }), [fest, bulkCourses, region]);
+  const bulkLineCount = bulk.reduce((n, b) => n + b.lines.length, 0);
 
   async function writeClip(text) {
     try { await navigator.clipboard.writeText(text); return true; } catch { return false; }
@@ -73,22 +82,42 @@ export default function Content() {
   }
 
   // Feature 4: export the generated copy as a CSV file.
-  function exportCsv() {
-    const esc = (s) => `"${String(s).replace(/"/g, '""')}"`;
-    const header = ["Placeholder", "Copy", "Chars", "Budget", "Fits", "Festival", "Course", "Code"];
-    const rows = generated.map((g) => [
-      g.name, g.text, g.text.length, g.budget, g.text.length <= g.budget ? "yes" : "no",
-      cleanName(fest), course.name, code,
-    ]);
-    const csv = [header, ...rows].map((r) => r.map(esc).join(",")).join("\r\n");
+  const csvEsc = (s) => `"${String(s).replace(/"/g, '""')}"`;
+  function downloadCsv(header, rows, name) {
+    const csv = [header, ...rows].map((r) => r.map(csvEsc).join(",")).join("\r\n");
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
-    a.href = url;
-    a.download = `banner-copy-${festivalKey}-${courseId}.csv`;
+    a.href = url; a.download = name;
     document.body.appendChild(a); a.click(); a.remove();
     URL.revokeObjectURL(url);
     toast?.("CSV downloaded");
+  }
+  function exportCsv() {
+    const header = ["Placeholder", "Copy", "Chars", "Budget", "Fits", "Festival", "Course", "Region", "Code"];
+    const rows = generated.map((g) => [
+      g.name, g.text, g.text.length, g.budget, g.text.length <= g.budget ? "yes" : "no",
+      cleanName(fest), course.name, region.label, code,
+    ]);
+    downloadCsv(header, rows, `banner-copy-${festivalKey}-${courseId}-${region.key}.csv`);
+  }
+
+  // Feature 7: bulk copy + export across the chosen courses.
+  function toggleBulk(id) {
+    setBulkIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  }
+  async function copyBulk() {
+    const txt = bulk.map((b) => `## ${b.course.name}\n` + b.lines.map((g) => `${g.name}: ${g.text}`).join("\n")).join("\n\n");
+    if (await writeClip(txt)) { setCopiedBulk(true); setTimeout(() => setCopiedBulk(false), 1500); toast?.(`Copied ${bulkLineCount} lines`); }
+  }
+  function exportBulkCsv() {
+    const header = ["Festival", "Course", "Placeholder", "Copy", "Chars", "Budget", "Fits", "Region"];
+    const rows = [];
+    bulk.forEach((b) => b.lines.forEach((g) => rows.push([
+      cleanName(fest), b.course.name, g.name, g.text, g.text.length, g.budget,
+      g.text.length <= g.budget ? "yes" : "no", region.label,
+    ])));
+    downloadCsv(header, rows, `campaign-${festivalKey}-${region.key}.csv`);
   }
 
   const library = useMemo(() => FESTIVALS.filter((f) =>
@@ -143,13 +172,18 @@ export default function Content() {
       <div className="card panel" style={{ marginBottom: 18 }}>
         <div className="panel-head">
           <h3>Generated copy · all placeholders</h3>
-          <div style={{ display: "flex", gap: 6 }}>
+          <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+            <select className="select" value={regionKey} onChange={(e) => setRegionKey(e.target.value)} title="Localize for a region (never names the country)">
+              {REGIONS.map((r) => <option key={r.key} value={r.key}>{r.key === "global" ? r.label : `Localize: ${r.label}`}</option>)}
+            </select>
             <button className="mini-btn" onClick={copyAll}>{copiedAll ? "Copied all ✓" : "Copy all"}</button>
             <button className="mini-btn" onClick={exportCsv}>Export CSV</button>
           </div>
         </div>
         <div className="cell-sub" style={{ marginBottom: 4 }}>
-          Filled for <b>{cleanName(fest)}</b> · {course.name}. A line that overflows its slot switches to a compact version automatically; every line is checked against the brand rules (no country, no price, no em dash).
+          Filled for <b>{cleanName(fest)}</b> · {course.name}
+          {region.key !== "global" && <> · <b>{region.label}</b> tone ({region.tone}), hook &ldquo;{region.hook}&rdquo;</>}.
+          A line that overflows its slot switches to a compact version automatically; every line is checked against the brand rules (no country, no price, no em dash).
         </div>
         {generated.map((g) => {
           const fits = g.text.length <= g.budget;
@@ -180,6 +214,66 @@ export default function Content() {
             </div>
           );
         })}
+      </div>
+
+      {/* Feature 7: bulk generate across many courses */}
+      <div className="card panel" style={{ marginBottom: 18 }}>
+        <div className="panel-head">
+          <h3>Bulk generate · {cleanName(fest)} × courses</h3>
+          <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+            <span style={infoBadge}>{bulkCourses.length} courses × 5 = {bulkLineCount} lines</span>
+            <button className="mini-btn" onClick={copyBulk} disabled={!bulkLineCount}>{copiedBulk ? "Copied ✓" : "Copy all"}</button>
+            <button className="mini-btn" onClick={exportBulkCsv} disabled={!bulkLineCount}>Export CSV</button>
+          </div>
+        </div>
+        <div className="cell-sub" style={{ marginBottom: 8 }}>
+          Build a whole festival campaign at once. Uses the region above ({region.label}). Pick courses:
+        </div>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 10 }}>
+          <button className="mini-btn" onClick={() => setBulkIds(COURSES.map((c) => c.id))}>Select all</button>
+          <button className="mini-btn" onClick={() => setBulkIds([])}>Clear</button>
+          <span style={{ width: 1, background: "var(--line)", margin: "0 2px" }} />
+          {COURSES.map((c) => {
+            const on = bulkIds.includes(c.id);
+            return (
+              <button key={c.id} className="mini-btn" onClick={() => toggleBulk(c.id)}
+                style={{ background: on ? "var(--brand)" : "var(--surface-2)", color: on ? "#fff" : "var(--muted)", borderColor: on ? "transparent" : "var(--line)" }}>
+                {on ? "✓ " : ""}{c.name}
+              </button>
+            );
+          })}
+        </div>
+        {bulkLineCount === 0
+          ? <div className="cell-sub" style={{ padding: 10 }}>Pick at least one course to generate.</div>
+          : (
+            <div style={{ maxHeight: 420, overflowY: "auto", border: "1px solid var(--line)", borderRadius: 10 }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                <thead>
+                  <tr style={{ textAlign: "left", color: "var(--muted)" }}>
+                    <th style={{ padding: "8px 10px", position: "sticky", top: 0, background: "var(--surface)" }}>Course</th>
+                    <th style={{ padding: "8px 10px", position: "sticky", top: 0, background: "var(--surface)" }}>Placeholder</th>
+                    <th style={{ padding: "8px 10px", position: "sticky", top: 0, background: "var(--surface)" }}>Chars</th>
+                    <th style={{ padding: "8px 10px", position: "sticky", top: 0, background: "var(--surface)" }}>Copy</th>
+                    <th style={{ position: "sticky", top: 0, background: "var(--surface)" }} />
+                  </tr>
+                </thead>
+                <tbody>
+                  {bulk.map((b) => b.lines.map((g, i) => {
+                    const rk = b.course.id + ":" + g.key;
+                    return (
+                      <tr key={rk} style={{ borderTop: "1px solid var(--line)" }}>
+                        <td style={{ padding: "7px 10px", fontWeight: i === 0 ? 600 : 400, color: i === 0 ? "inherit" : "transparent", whiteSpace: "nowrap", verticalAlign: "top" }}>{b.course.name}</td>
+                        <td style={{ padding: "7px 10px", color: "var(--muted)", whiteSpace: "nowrap", verticalAlign: "top" }}>{g.name}</td>
+                        <td style={{ padding: "7px 10px", verticalAlign: "top" }}><span style={countBadge(g.text.length <= g.budget)}>{g.text.length}/{g.budget}</span></td>
+                        <td style={{ padding: "7px 10px", verticalAlign: "top" }}>{g.text}{!g.lint.clean && <span style={{ ...warnBadge, marginLeft: 6 }}>{g.lint.issues[0].label}</span>}</td>
+                        <td style={{ padding: "7px 10px", verticalAlign: "top" }}><button className="mini-btn" onClick={() => copyLine(rk, g.text)}>{copiedKey === rk ? "✓" : "Copy"}</button></td>
+                      </tr>
+                    );
+                  }))}
+                </tbody>
+              </table>
+            </div>
+          )}
       </div>
 
       {/* Motivation library + course values */}
