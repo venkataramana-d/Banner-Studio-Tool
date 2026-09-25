@@ -13,7 +13,6 @@ const DEFAULTS = {
   rule: "hybrid",
   floor: POLICY.marginFloorPct,
   invensis: true,
-  edstellar: false,
   geo: true,
   holidays: true,
   kill: false,
@@ -103,7 +102,6 @@ export default function Settings() {
         <div className="card setting">
           <h3>Sites &amp; sources</h3><p>Where offers run and where data comes from.</p>
           <div className="addon"><span>Invensis Learning</span><Toggle on={s.invensis} label="Invensis Learning" onClick={() => update({ invensis: !s.invensis })} /></div>
-          <div className="addon" style={{ marginTop: 8 }}><span>Edstellar (v1.1)</span><Toggle on={s.edstellar} label="Edstellar" onClick={() => update({ edstellar: !s.edstellar })} /></div>
           <div className="addon" style={{ marginTop: 8 }}><span>Geo - Cloudflare edge</span><Toggle on={s.geo} label="Geo Cloudflare edge" onClick={() => update({ geo: !s.geo })} /></div>
           <div className="addon" style={{ marginTop: 8 }}><span>Holidays - Nager.Date auto-import (all countries)</span><Toggle on={s.holidays} label="Holidays auto-import" onClick={() => update({ holidays: !s.holidays })} /></div>
         </div>
