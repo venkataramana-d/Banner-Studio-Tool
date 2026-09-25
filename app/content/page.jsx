@@ -6,17 +6,9 @@ import { FESTIVALS, festivalByKey } from "@/lib/festivals";
 import { COURSES, courseById, courseValue, CATEGORIES } from "@/lib/catalog";
 import { PLACEHOLDERS } from "@/lib/config";
 import { neutralCode, displayLabel, defaultMode, suggestDiscount } from "@/lib/logic";
+import { generateAll, cleanName, autofix } from "@/lib/content";
 
 const placeFormat = (key) => ({ course_top_bar: "thin", site_top_strip: "strip", bottom_action_bar: "strip", home_hero: "hero", popup_toast: "hero" }[key] || "hero");
-
-// Copy formulas (fill-in templates) per placeholder.
-const FORMULAS = [
-  ["Site top strip", "{motivation} {offer} {course}. Code {code}. Ends {date}."],
-  ["Course top bar", "{festival}: {offer} {course} - {motivation_short}. Code {code}"],
-  ["Home hero", "{motivation} {offer} {course}. {course_value}. Enroll before {date}. Code {code}."],
-  ["Popup / toast", "Before you go - {motivation} {offer} {course}. Ends {date}. Code {code}."],
-  ["Bottom action bar", "{festival}: {offer} {course} - enroll now. Code {code}."],
-];
 
 // Country localization tone (banner tone, not shown as country).
 const LOCALIZATION = [
@@ -29,14 +21,24 @@ const LOCALIZATION = [
   ["Germany", "Formal", "Accredited certification"],
 ];
 
+// Small pill badges (theme-aware).
+const badgeBase = { fontSize: 11, fontWeight: 600, padding: "1px 7px", borderRadius: 999, whiteSpace: "nowrap", lineHeight: 1.7 };
+const okBadge = { ...badgeBase, color: "var(--good)", background: "var(--good-bg)" };
+const warnBadge = { ...badgeBase, color: "var(--warn)", background: "var(--warn-bg)" };
+const infoBadge = { ...badgeBase, color: "var(--muted)", background: "var(--surface-2)", border: "1px solid var(--line)" };
+const countBadge = (fits) => (fits ? okBadge : warnBadge);
+
 export default function Content() {
-  const { openDrawer } = useUI();
+  const { openDrawer, toast } = useUI();
   const [festivalKey, setFestivalKey] = useState("in_diwali");
   const [courseId, setCourseId] = useState("pmp");
   const [placeholder, setPlaceholder] = useState("course_top_bar");
   const [copied, setCopied] = useState(false);
   const [q, setQ] = useState("");
   const [tier, setTier] = useState("");
+  const [copiedKey, setCopiedKey] = useState(null);
+  const [copiedAll, setCopiedAll] = useState(false);
+  const [expanded, setExpanded] = useState(() => new Set());
 
   const fest = festivalByKey(festivalKey);
   const course = courseById(courseId);
@@ -47,9 +49,46 @@ export default function Content() {
 
   const copyText = `${fest.motivation} ${offerLabel} ${course.tm || ""} · ${courseValue(course)} Ends soon - code ${code}.`.replace(/\s+/g, " ").trim();
 
+  // Feature 1+2: filled copy for every placeholder, with budget-aware compact fallback + lint.
+  const generated = useMemo(() => generateAll(fest, course, 2026), [fest, course]);
+
+  async function writeClip(text) {
+    try { await navigator.clipboard.writeText(text); return true; } catch { return false; }
+  }
   async function copy() {
-    try { await navigator.clipboard.writeText(copyText); setCopied(true); setTimeout(() => setCopied(false), 1500); }
-    catch { setCopied(false); }
+    if (await writeClip(copyText)) { setCopied(true); setTimeout(() => setCopied(false), 1500); }
+  }
+  async function copyLine(key, text) {
+    if (await writeClip(text)) { setCopiedKey(key); setTimeout(() => setCopiedKey(null), 1500); }
+  }
+  async function copyAll() {
+    const txt = generated.map((g) => `${g.name}: ${g.text}`).join("\n");
+    if (await writeClip(txt)) { setCopiedAll(true); setTimeout(() => setCopiedAll(false), 1500); toast?.("Copied all 5 lines"); }
+  }
+  async function fixLine(key, text) {
+    if (await writeClip(autofix(text))) { setCopiedKey(key); setTimeout(() => setCopiedKey(null), 1500); toast?.("Fixed copy copied"); }
+  }
+  function toggleExpand(key) {
+    setExpanded((prev) => { const n = new Set(prev); n.has(key) ? n.delete(key) : n.add(key); return n; });
+  }
+
+  // Feature 4: export the generated copy as a CSV file.
+  function exportCsv() {
+    const esc = (s) => `"${String(s).replace(/"/g, '""')}"`;
+    const header = ["Placeholder", "Copy", "Chars", "Budget", "Fits", "Festival", "Course", "Code"];
+    const rows = generated.map((g) => [
+      g.name, g.text, g.text.length, g.budget, g.text.length <= g.budget ? "yes" : "no",
+      cleanName(fest), course.name, code,
+    ]);
+    const csv = [header, ...rows].map((r) => r.map(esc).join(",")).join("\r\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `banner-copy-${festivalKey}-${courseId}.csv`;
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(url);
+    toast?.("CSV downloaded");
   }
 
   const library = useMemo(() => FESTIVALS.filter((f) =>
@@ -81,7 +120,7 @@ export default function Content() {
             </select>
           </div>
           <div className="field">
-            <label>Placeholder</label>
+            <label>Placeholder (for the preview)</label>
             <select className="select" value={placeholder} onChange={(e) => setPlaceholder(e.target.value)}>
               {PLACEHOLDERS.map((p) => <option key={p.key} value={p.key}>{p.name}</option>)}
             </select>
@@ -100,14 +139,47 @@ export default function Content() {
         </div>
       </div>
 
-      {/* Copy formulas */}
+      {/* Feature 1-4: generated copy for every placeholder */}
       <div className="card panel" style={{ marginBottom: 18 }}>
-        <div className="panel-head"><h3>Copy formulas</h3><span className="cell-sub">tokens fill in automatically per offer</span></div>
-        {FORMULAS.map(([name, f]) => (
-          <div className="live-row" key={name}>
-            <div className="lr-main"><div className="lr-title">{name}</div><div className="lr-sub"><span className="mono" style={{ whiteSpace: "normal" }}>{f}</span></div></div>
+        <div className="panel-head">
+          <h3>Generated copy · all placeholders</h3>
+          <div style={{ display: "flex", gap: 6 }}>
+            <button className="mini-btn" onClick={copyAll}>{copiedAll ? "Copied all ✓" : "Copy all"}</button>
+            <button className="mini-btn" onClick={exportCsv}>Export CSV</button>
           </div>
-        ))}
+        </div>
+        <div className="cell-sub" style={{ marginBottom: 4 }}>
+          Filled for <b>{cleanName(fest)}</b> · {course.name}. A line that overflows its slot switches to a compact version automatically; every line is checked against the brand rules (no country, no price, no em dash).
+        </div>
+        {generated.map((g) => {
+          const fits = g.text.length <= g.budget;
+          const fixable = g.lint.issues.some((i) => i.fixable);
+          return (
+            <div className="live-row" key={g.key} style={{ alignItems: "flex-start" }}>
+              <div className="lr-main">
+                <div className="lr-title" style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                  {g.name}
+                  <span style={countBadge(fits)}>{g.text.length}/{g.budget}</span>
+                  {g.usedShort && <span style={infoBadge}>compact</span>}
+                  {g.lint.clean
+                    ? <span style={okBadge}>clean ✓</span>
+                    : g.lint.issues.map((i) => <span key={i.type} style={warnBadge}>{i.label}</span>)}
+                </div>
+                <div className="lr-sub" style={{ whiteSpace: "normal", color: "var(--text, inherit)" }}>{g.text}</div>
+                {expanded.has(g.key) && (
+                  <div className="lr-sub" style={{ whiteSpace: "normal", marginTop: 4 }}>
+                    <span className="cell-sub">{g.usedShort ? "Full" : "Compact"}: </span>{g.usedShort ? g.full : g.short}
+                  </div>
+                )}
+              </div>
+              <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+                {fixable && <button className="mini-btn" onClick={() => fixLine(g.key, g.text)}>Fix</button>}
+                <button className="mini-btn" onClick={() => toggleExpand(g.key)}>{expanded.has(g.key) ? "Hide" : (g.usedShort ? "Full" : "Compact")}</button>
+                <button className="mini-btn" onClick={() => copyLine(g.key, g.text)}>{copiedKey === g.key ? "Copied ✓" : "Copy"}</button>
+              </div>
+            </div>
+          );
+        })}
       </div>
 
       {/* Motivation library + course values */}
