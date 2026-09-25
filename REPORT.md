@@ -19,7 +19,7 @@ automatically by country and date.
 - Content Templates - a full copy-authoring workspace: live generation of copy for all 5 slots with per-slot character budgets and auto-compact fallback; a brand-rule linter (no country/price/em dash) with one-click Fix; region localization (festival greeting + credibility hook, never names the country); bulk generate across many courses with Copy all + Export CSV; saved templates (persisted); and a campaign kit that pushes a launch-ready, prefilled offer into Create Offer. Plus the searchable motivation library, course value lines and localization-tone reference.
 - Placeholders - the five on-site slots shown in a mock website, filled by active offers; viewing records an impression per live banner and clicking records a click (real tracking).
 - Analytics - computed from tracked events with a date-range filter (7 / 30 / 90 days / all): impressions, CTR, redemptions and estimated discounted revenue, an impressions-over-time trend, breakdowns by offer / country / placeholder, and a per-offer table with CSV export.
-- Settings - discount policy, 20%-off reconciliation, margin floor, sites, kill switch (all functional and persisted).
+- Settings - discount policy, 20%-off reconciliation, a margin-floor slider (wired into the editor guard), sites, blackout dates, and a master kill switch that hides every banner (all functional and persisted).
 
 ### Create / Edit offer (the core screen)
 - Pick a festival -> auto tier + discount; hybrid 20%-off pricing with a 35% margin-floor guard.
@@ -27,8 +27,9 @@ automatically by country and date.
 - Global or country targeting (never shown on the banner).
 - Editable coupon code, editable timeline (lead/trail days or exact start/end dates).
 - Auto-apply links - hide the code so it can't be scraped; discount applies via the Enroll link.
-- Editable Banner Editor - tag, headline, value line and button text, each with show/hide, in a live preview.
-- Overlap prevention (one offer per placeholder x country) with a "publish anyway" override.
+- Editable Banner Editor - tag, headline, value line and button text (each with show/hide), an "Ends in N days" countdown toggle, and an A/B variant-B headline/value, in a live preview.
+- Overlap prevention (one offer per placeholder x country) with a "publish anyway" override; a warning when the window overlaps a blackout period.
+- Approval gate - submit for approval; a live offer stays live when you save changes.
 - Duplicate / clone (change the year to set up next year's campaign).
 
 ### Coupons page
@@ -48,7 +49,16 @@ automatically by country and date.
 - Removed the Edstellar site switcher (single-site build for now); added Teachers' Day (India, Sep 5).
 - Persistence made pluggable (Postgres / Neon); fixed the cold-start "empty Campaigns/Coupons" flicker by retrying the data fetch with backoff instead of silently rendering an empty list.
 - Content Templates rebuilt from a reference page into a generator: live copy for all placeholders, character budgets + compact fallback, brand-rule linter, region localization, bulk generate + CSV, saved templates, and campaign-kit -> Create Offer.
-- Analytics moved from sample figures to real data: first computed live from offers + coupons (Dashboard too), then backed by a per-event tracking layer. Events are stored as daily rollups (per offer / day / country), ingested via `POST /api/events` (impressions and clicks fire from the Placeholders page), and the Analytics page filters them by date range for real trends, with CSV export. The 90-day demo history is seeded so ranges reconcile with the offer totals.
+- Analytics moved from sample figures to real data: first computed live from offers + coupons (Dashboard too), then backed by a per-event tracking layer. Events are stored as daily rollups (per offer / day / country / A/B variant), ingested via `POST /api/events` (impressions and clicks fire from the Placeholders page), and the Analytics page filters them by date range for real trends, with CSV export. The 90-day demo history is seeded so ranges reconcile with the offer totals; the Dashboard reads the same rollups so the two pages always agree.
+- **Publish-approval gate:** offers go draft -> pending -> approved / rejected and only reach live once approved. computeStatus holds unapproved offers at "pending"; coupon validation refuses a coupon whose offer isn't live (covers pending/rejected and paused); Campaigns has Approve / Reject / Submit; the editor's primary action keeps a live offer live.
+- **Countdown banners** ("Ends in N days"), **blackout dates** (freeze periods that hold offers and block coupons, managed in Settings), **bulk-create across countries** (one localized offer per target country), and **A/B copy variants** (variant B, 50/50 split, per-variant tracking + results readout).
+- **Wired the Settings guardrails** that were previously cosmetic: the margin-floor slider now drives the editor's guard, and the master kill switch hides every banner on Placeholders.
+
+---
+
+## Multi-agent review + fixes
+
+Ran four parallel review agents (backend/data, frontend/design, content/brand, QA/integration) over the finished tool and fixed every confirmed issue, including: overlap detection counting dead offers; the API not enforcing the approval gate by default; a paused offer's coupon still validating; Dashboard vs Analytics drifting after tracked activity; deleting an offer orphaning its event rows; `updateOffer` able to rewrite identity fields; the GCC "KHDA" hook tripping the linter's own country rule; a double "Eid Mubarak!"; a wrong Guru Nanak Jayanti 2028 date; the drawer's primary action silently taking a live offer offline; missing error handling / double-submit guards on row actions; dark-mode contrast; and drawer accessibility (dialog role + Escape). Production build passes with zero console errors.
 
 ---
 
@@ -94,4 +104,5 @@ automatically by country and date.
   shared across instances; unset, it uses the ephemeral file/mock store. Cold-start empty flicker fixed
   on the client (retry-with-backoff) so a slow first request shows "Loading…", not a false empty list.
 - Analytics are real: per-event tracking with daily rollups, date-range filtering and CSV export. The demo history is seeded across 90 days; live events accrue as the app is used.
-- Remaining backlog: bulk-create across countries, countdown banners, blackout dates, an approval step, and A/B variants.
+- The full backlog has shipped: approval gate, countdown banners, blackout dates, bulk-create across countries, and A/B variants - all reviewed by a multi-agent pass and fixed.
+- Remaining for production: real auth / user accounts (approvals are attributed to a single "Marketing" user), a managed database instead of the demo store, and making real redemptions count toward coupon usage limits (today the usage cap uses seeded values). The file store is single-writer (demo); the Postgres backend is atomic.

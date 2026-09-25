@@ -18,10 +18,16 @@ Invensis app and `xapi` backend.
 - **Dashboard** - live/scheduled counts, live offers, upcoming festivals, charts, and a search that
   filters the view as you type.
 - **Campaigns** - every offer with filters (status, country, category, tier, placeholder); click any
-  row to edit.
+  row to edit; duplicate, pause/resume, delete, and **approve / reject / submit** for review.
 - **Create / Edit offer** - festival, mode, discount, course, placeholder, editable coupon code,
   editable timeline (lead/trail days or exact dates), a margin-floor guard, overlap prevention, and a
-  live banner preview.
+  live banner preview, plus:
+  - **Approval gate** - a new offer is submitted for review, not self-published; it only goes live once
+    approved. Editing a live offer keeps it live ("Save changes") unless you re-submit.
+  - **Countdown banners** - an optional "Ends in N days" countdown on the banner.
+  - **A/B copy variants** - test a second headline; live traffic splits 50/50 and each variant is
+    tracked separately, with an A/B results readout (impressions, CTR, which leads).
+  - **Blackout awareness** - warns when the offer's window overlaps a configured freeze period.
 - **Festival Calendar** - pick a year, month, and any country to see its festivals and public
   holidays (public holidays auto-imported from the free Nager.Date API, with a curated fallback).
   Booked festivals are flagged so offers never double-book a placeholder.
@@ -42,6 +48,8 @@ Invensis app and `xapi` backend.
     click (stored via the same backend as offers).
   - **Campaign kit -> Create Offer** - one click opens Create Offer prefilled with the localized banner
     copy, coupon, discount and auto-schedule; ready to review and Schedule.
+  - **Bulk-create across countries** - for a multi-country festival, create one localized offer per
+    target country in a single action (each submitted for approval).
   - Plus the searchable motivation library, course value lines and localization-tone reference.
 - **Placeholders** - the five on-site slots shown in a mock website, filled by your active offers.
   Viewing the page records an impression for each live banner, and clicking one records a click, so the
@@ -50,8 +58,10 @@ Invensis app and `xapi` backend.
   days / all time) for real trends: impressions/CTR, redemptions and estimated discounted revenue, an
   "impressions over time" chart, breakdowns by offer / country / placeholder, and a per-offer table with
   CSV export. Metrics come from the event store, so the Dashboard and Analytics agree.
-- **Settings** - discount policy, margin floor, sites, geo source, and a master kill switch (all
-  interactive and persisted). "Reset demo data" reseeds offers, coupons and the 90-day event history.
+- **Settings** - discount policy, a **margin-floor slider** (wired into the offer editor's guard), sites,
+  geo source, **blackout dates** (freeze periods that hold offers and block coupons), and a **master kill
+  switch** (hides every banner on Placeholders) - all interactive and persisted. "Reset demo data"
+  reseeds offers, coupons, templates, blackouts and the 90-day event history.
 - Light and dark themes, keyboard focus states, and responsive down to phone width.
 
 ## Core rules (locked product decisions)
@@ -148,27 +158,30 @@ banner-studio-app/
 
 ## API (mock)
 
-- `GET/POST /api/offers`, `GET/PUT/DELETE /api/offers/:id` - offer CRUD (POST does an overlap check).
-- `GET /api/coupons`, `POST /api/coupons/validate` - list and server-side validation (site + country + window).
+- `GET/POST /api/offers`, `GET/PUT/DELETE /api/offers/:id` - offer CRUD (POST does an overlap check and, by default, submits new offers for approval).
+- `GET /api/coupons`, `POST /api/coupons/validate` - list and server-side validation (site + country + window + approval/live status + blackout).
 - `GET/POST /api/templates`, `DELETE /api/templates/:id` - saved content templates (POST validates the festival).
-- `GET/POST /api/events` - analytics event rollups; GET lists them, POST ingests one impression/click/redemption into the current day's bucket.
+- `GET/POST /api/events` - analytics event rollups; GET lists them, POST ingests one impression/click/redemption (with an optional A/B `variant`) into the current day's bucket.
+- `GET/POST /api/blackouts`, `DELETE /api/blackouts/:id` - freeze periods.
 - `GET /api/holidays?country=IN&year=2026` - public holidays (Nager.Date + curated fallback).
-- `POST /api/reset` - reseed the demo data (offers, coupons, templates and the 90-day event history).
+- `POST /api/reset` - reseed the demo data (offers, coupons, templates, blackouts and the 90-day event history).
 
 ---
 
 ## Roadmap (next)
 
-Delivered since v1: pluggable Postgres persistence; editable Banner Editor; auto-apply coupon links;
+Delivered since v1: pluggable Postgres persistence; the editable Banner Editor; auto-apply coupon links;
 duplicate / clone-to-next-year; the Content Templates suite (generation, linter, localization, bulk,
-saved templates, campaign-kit -> Create Offer); and per-event analytics with date-range filtering,
-trends and CSV export.
+saved templates, campaign-kit -> Create Offer); per-event analytics with date-range filtering, trends and
+CSV export; a **publish-approval gate**; **countdown banners**; **blackout dates**; **bulk-create across
+countries**; and **A/B copy variants**. A multi-agent review pass (backend, frontend, content, QA) then
+found and fixed the issues those features surfaced.
 
 Still open:
 
-- Bulk-create offers across countries in one action (bulk copy generation already ships).
-- Countdown banners, blackout dates, and A/B copy variants.
-- Auth and a publish-approval gate (deferred to just before go-live).
+- **Auth / real user accounts** (approvals are attributed to a single "Marketing" user for now).
+- Move off the demo store to a managed database in production, and let real redemptions count toward
+  coupon usage limits.
 
 ## Notes
 
