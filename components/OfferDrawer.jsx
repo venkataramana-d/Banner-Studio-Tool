@@ -1,12 +1,13 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
 import { useUI } from "./ui-context";
+import { useBlackouts } from "./data";
 import Banner from "./Banner";
 import { FESTIVALS, festivalByKey } from "@/lib/festivals";
 import { COURSES, courseById, courseValue } from "@/lib/catalog";
 import { PLACEHOLDERS, countryFlag, COUNTRIES } from "@/lib/config";
 import {
-  computeWindow, defaultMode, suggestDiscount, displayLabel, priceAfter, marginOk, neutralCode, countdownText,
+  computeWindow, defaultMode, suggestDiscount, displayLabel, priceAfter, marginOk, neutralCode, countdownText, windowBlackout,
 } from "@/lib/logic";
 
 const fmtDate = (iso) => (iso ? new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "-");
@@ -33,6 +34,7 @@ function windowFromDate(dateStr, lead, trail) {
 
 export default function OfferDrawer() {
   const { drawer, closeDrawer, refresh, site, toast } = useUI();
+  const blackouts = useBlackouts();
   const editing = drawer.offer?.id ? drawer.offer : null;
 
   const [festivalKey, setFestivalKey] = useState("in_diwali");
@@ -369,6 +371,15 @@ export default function OfferDrawer() {
             </div>
           )}
           <div className="win">Live: {fmtDate(win?.startsAt)} to {fmtDate(win?.endsAt)} · switches on/off automatically</div>
+          {(() => {
+            const hit = windowBlackout(win?.startsAt, win?.endsAt, blackouts || []);
+            return hit ? (
+              <div className="alert warn" style={{ marginTop: 8 }}>
+                <svg width="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 9v4M12 17h.01M10.3 3.9 2 18a2 2 0 0 0 1.7 3h16.6a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z" /></svg>
+                This window overlaps the blackout &ldquo;{hit.label}&rdquo; ({hit.startDate} to {hit.endDate}). The offer is paused during that period.
+              </div>
+            ) : null;
+          })()}
 
           <div className="section-t">Coupon</div>
           <div className="field"><label>Display code (editable, no country)</label>

@@ -54,6 +54,10 @@ export function useEvents() {
   return useResource("/api/events", (j) => j.events);
 }
 
+export function useBlackouts() {
+  return useResource("/api/blackouts", (j) => j.blackouts);
+}
+
 // Fire-and-forget event ingest (impression / click / redemption). Best-effort:
 // never throws, uses keepalive so it survives navigation.
 export function track(type, offerId, country, placeholder) {

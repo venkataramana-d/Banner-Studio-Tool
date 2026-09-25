@@ -1,7 +1,9 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useUI } from "@/components/ui-context";
+import { useBlackouts } from "@/components/data";
 import { POLICY } from "@/lib/config";
+import { blackoutFor } from "@/lib/logic";
 
 const RULES = [
   { key: "hybrid", title: "Hybrid (recommended)", desc: "Re-theme the 20% for normal occasions; small extra on top for major tentpoles, above the margin floor." },
@@ -27,9 +29,24 @@ function Toggle({ on, onClick, label }) {
 
 export default function Settings() {
   const { refresh, toast } = useUI();
+  const blackouts = useBlackouts();
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(false);
   const [s, setS] = useState(DEFAULTS);
+  const [boLabel, setBoLabel] = useState("");
+  const [boStart, setBoStart] = useState("");
+  const [boEnd, setBoEnd] = useState("");
+
+  const todayStr = new Date().toISOString().slice(0, 10);
+  async function addBlackout() {
+    if (!boStart || !boEnd || boEnd < boStart) { toast("Pick a valid date range"); return; }
+    const r = await fetch("/api/blackouts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ label: boLabel.trim() || "Blackout", startDate: boStart, endDate: boEnd }) });
+    if (r.ok) { setBoLabel(""); setBoStart(""); setBoEnd(""); refresh(); toast("Blackout added"); } else toast("Could not add blackout");
+  }
+  async function removeBlackout(b) {
+    if (!window.confirm(`Delete blackout "${b.label}"?`)) return;
+    await fetch(`/api/blackouts/${b.id}`, { method: "DELETE" }); refresh(); toast("Blackout removed");
+  }
 
   // load persisted settings
   useEffect(() => {
@@ -104,6 +121,27 @@ export default function Settings() {
           <div className="addon"><span>Invensis Learning</span><Toggle on={s.invensis} label="Invensis Learning" onClick={() => update({ invensis: !s.invensis })} /></div>
           <div className="addon" style={{ marginTop: 8 }}><span>Geo - Cloudflare edge</span><Toggle on={s.geo} label="Geo Cloudflare edge" onClick={() => update({ geo: !s.geo })} /></div>
           <div className="addon" style={{ marginTop: 8 }}><span>Holidays - Nager.Date auto-import (all countries)</span><Toggle on={s.holidays} label="Holidays auto-import" onClick={() => update({ holidays: !s.holidays })} /></div>
+        </div>
+
+        <div className="card setting" style={{ gridColumn: "1/-1" }}>
+          <h3>Blackout dates</h3><p>Periods when no promotion runs. During a blackout, coupons stop validating; the offer editor warns if a window overlaps one.</p>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "flex-end", marginBottom: 10 }}>
+            <div className="field" style={{ flex: "2 1 160px" }}><label>Label</label><input value={boLabel} onChange={(e) => setBoLabel(e.target.value)} placeholder="e.g. Year-end freeze" maxLength={60} /></div>
+            <div className="field" style={{ flex: "1 1 120px" }}><label>Start</label><input type="date" value={boStart} onChange={(e) => setBoStart(e.target.value)} /></div>
+            <div className="field" style={{ flex: "1 1 120px" }}><label>End</label><input type="date" value={boEnd} min={boStart} onChange={(e) => setBoEnd(e.target.value)} /></div>
+            <button className="mini-btn" onClick={addBlackout} disabled={!boStart || !boEnd}>Add</button>
+          </div>
+          {blackouts === null ? <div className="cell-sub" style={{ padding: 6 }}>Loading…</div>
+            : blackouts.length === 0 ? <div className="cell-sub" style={{ padding: 6 }}>No blackout periods.</div>
+              : blackouts.map((b) => {
+                const active = !!blackoutFor(todayStr, [b]);
+                return (
+                  <div className="live-row" key={b.id}>
+                    <div className="lr-main"><div className="lr-title">{b.label} {active && <span className="pill p-pending" style={{ marginLeft: 4 }}>Active now</span>}</div><div className="lr-sub tnum">{b.startDate} → {b.endDate}</div></div>
+                    <button className="mini-btn" onClick={() => removeBlackout(b)}>Delete</button>
+                  </div>
+                );
+              })}
         </div>
 
         <div className="card setting" style={{ gridColumn: "1/-1" }}>

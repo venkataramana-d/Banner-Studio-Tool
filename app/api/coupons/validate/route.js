@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { getCoupons, getOffers } from "@/lib/store";
-import { validateCoupon, REASON_TEXT } from "@/lib/logic";
+import { getCoupons, getOffers, getBlackouts } from "@/lib/store";
+import { validateCoupon, REASON_TEXT, blackoutFor } from "@/lib/logic";
 
 export const dynamic = "force-dynamic";
 
@@ -18,6 +18,10 @@ export async function POST(req) {
     if (offer && (offer.approval || "approved") !== "approved") {
       result = { valid: false, reason: "not_approved" };
     }
+  }
+  if (result.valid) {
+    const today = new Date().toISOString().slice(0, 10);
+    if (blackoutFor(today, await getBlackouts())) result = { valid: false, reason: "blackout" };
   }
   return NextResponse.json({
     ...result,
