@@ -49,3 +49,21 @@ export function useCoupons() {
 export function useTemplates() {
   return useResource("/api/templates", (j) => j.templates);
 }
+
+export function useEvents() {
+  return useResource("/api/events", (j) => j.events);
+}
+
+// Fire-and-forget event ingest (impression / click / redemption). Best-effort:
+// never throws, uses keepalive so it survives navigation.
+export function track(type, offerId, country, placeholder) {
+  if (!offerId) return;
+  try {
+    fetch("/api/events", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ type, offerId, country, placeholder }),
+      keepalive: true,
+    }).catch(() => {});
+  } catch { /* ignore */ }
+}

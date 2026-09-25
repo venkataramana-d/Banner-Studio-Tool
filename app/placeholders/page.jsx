@@ -1,5 +1,6 @@
 "use client";
-import { useOffers } from "@/components/data";
+import { useEffect, useRef } from "react";
+import { useOffers, track } from "@/components/data";
 import { useUI } from "@/components/ui-context";
 import Banner from "@/components/Banner";
 import { festivalByKey } from "@/lib/festivals";
@@ -26,9 +27,25 @@ function bannerProps(o) {
   };
 }
 
+const eventCountry = (o) => (o.scope === "global" ? "GLB" : (o.countries?.[0] || "GLB"));
+
 export default function Placeholders() {
   const offers = useOffers();
   const { openDrawer } = useUI();
+
+  // Record an impression for each live banner shown on this page (once per view).
+  const impressed = useRef(false);
+  useEffect(() => {
+    if (!offers || impressed.current) return;
+    impressed.current = true;
+    const seen = new Set();
+    for (const o of offers) {
+      if (o.status !== "live" || seen.has(o.placeholder)) continue;
+      seen.add(o.placeholder);
+      track("impression", o.id, eventCountry(o), o.placeholder);
+    }
+  }, [offers]);
+
   if (!offers) return <div className="empty">Loading…</div>;
 
   const pick = (key) => offers.filter((o) => o.placeholder === key && o.status !== "expired").sort((a, b) => (a.status === "live" ? -1 : 1))[0];
@@ -76,7 +93,9 @@ export default function Placeholders() {
                 {o ? <span className={"pill " + pcls[o.status]}>{cap(o.status)}</span> : <span className="pill p-draft">Empty</span>}
               </div>
               <p style={{ color: "var(--muted)", fontSize: 12.5, margin: 0 }}>{p.desc}</p>
-              <Slot pkey={p.key} fmt={placeFormat(p.key)} />
+              <div onClick={() => { if (o) track("click", o.id, eventCountry(o), o.placeholder); }} style={{ cursor: o ? "pointer" : "default" }} title={o ? "Simulate a tracked banner click" : undefined}>
+                <Slot pkey={p.key} fmt={placeFormat(p.key)} />
+              </div>
               <div style={{ display: "flex", gap: 8, fontSize: 11.5 }}>
                 <button className="mini-btn" onClick={() => o ? openDrawer(o) : openDrawer(null)}>{o ? "Edit banner" : "Add offer"}</button>
               </div>
