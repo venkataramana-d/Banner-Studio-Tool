@@ -175,19 +175,24 @@ export default function OfferDrawer() {
   const creative = { tagText: cTag, headline: cHeadline, valueLine: cValue, ctaText: cCta, showValue, showCta };
   const customFields = isCustom ? { customName, customTier, customScope, customCountries: countries } : {};
 
-  async function save(targetStatus) {
+  const approvalToast = (approval) => (approval === "pending" ? "Submitted for approval" : approval === "draft" ? "Draft saved" : editing?.id ? "Offer updated" : "Offer saved");
+
+  async function save(targetStatus, approval) {
     setSaving(true);
     setConflicts([]);
+    const approvalFields = approval
+      ? { approval, ...(approval === "approved" ? { approvedBy: "Marketing", approvedAt: new Date().toISOString() } : { approvedBy: null, approvedAt: null, approvalNote: null }) }
+      : {};
     const payload = {
       festivalKey, year, mode, discountPct, courseId, placeholder, lead, trail, countries,
-      status: targetStatus, site, couponCode, autoApply, creative, ...customFields,
+      status: targetStatus, site, couponCode, autoApply, creative, ...customFields, ...approvalFields,
       ...(passWindow ? { windowOverride: { eventDate: win.eventDate, startsAt: win.startsAt, endsAt: win.endsAt } } : {}),
     };
     try {
       if (editing?.id) {
         const patch = {
           mode, discountPct, courseId, courseName: course.name, placeholder, lead, trail, countries,
-          couponCode, autoApply, creative, status: targetStatus,
+          couponCode, autoApply, creative, status: targetStatus, ...approvalFields,
           eventDate: win?.eventDate, startsAt: win?.startsAt, endsAt: win?.endsAt,
         };
         await fetch(`/api/offers/${editing.id}`, { method: "PUT", body: JSON.stringify(patch) });
@@ -201,7 +206,7 @@ export default function OfferDrawer() {
         }
       }
       refresh();
-      toast(editing?.id ? "Offer updated" : (targetStatus === "draft" ? "Draft saved" : "Offer scheduled"));
+      toast(approvalToast(approval));
       closeDrawer();
     } catch (e) {
       toast("Could not save the offer", "error");
@@ -212,11 +217,11 @@ export default function OfferDrawer() {
     setSaving(true);
     const payload = {
       festivalKey, year, mode, discountPct, courseId, placeholder, lead, trail, countries,
-      status: "scheduled", site, couponCode, autoApply, creative, ...customFields, force: true,
+      status: "scheduled", site, couponCode, autoApply, creative, ...customFields, force: true, approval: "pending",
       ...(passWindow ? { windowOverride: { eventDate: win.eventDate, startsAt: win.startsAt, endsAt: win.endsAt } } : {}),
     };
     await fetch("/api/offers", { method: "POST", body: JSON.stringify(payload) });
-    refresh(); toast("Offer scheduled"); closeDrawer(); setSaving(false);
+    refresh(); toast("Submitted for approval"); closeDrawer(); setSaving(false);
   }
 
   if (!drawer.open) return null;
@@ -235,6 +240,15 @@ export default function OfferDrawer() {
               ? "Major festival - a small extra on top of the site's 20%, kept above the 35% floor."
               : "Normal occasion - re-themes the existing 20% as the festival (margin-safe)."}
           </div>
+
+          {editing && editing.approval && editing.approval !== "approved" && (
+            <div className={"alert " + (editing.approval === "rejected" ? "warn" : "info")} style={{ marginBottom: 12 }}>
+              <svg width="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="9" /><path d="M12 8v4M12 16h.01" /></svg>
+              {editing.approval === "rejected"
+                ? <span>Rejected{editing.approvalNote ? ` - "${editing.approvalNote}"` : ""}. Make changes and resubmit for approval.</span>
+                : <span>Awaiting approval. This offer will not go live until an approver approves it.</span>}
+            </div>
+          )}
 
           <div className="field">
             <label>Festival / occasion</label>
@@ -394,8 +408,11 @@ export default function OfferDrawer() {
           )}
         </div>
         <div className="drawer-foot">
-          <button className="btn-ghost" disabled={saving} onClick={() => save("draft")}>Save draft</button>
-          <button className="btn-primary" disabled={saving} onClick={() => save("scheduled")}>{saving ? "Saving…" : "Schedule offer"}</button>
+          <button className="btn-ghost" disabled={saving} onClick={() => save("draft", "draft")}>Save draft</button>
+          {editing && (editing.approval || "approved") === "approved" && (
+            <button className="btn-ghost" disabled={saving} onClick={() => save("scheduled", "approved")}>Save (keep live)</button>
+          )}
+          <button className="btn-primary" disabled={saving} onClick={() => save("scheduled", "pending")}>{saving ? "Saving…" : "Submit for approval"}</button>
         </div>
       </aside>
     </>

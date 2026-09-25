@@ -48,7 +48,8 @@ export default function Placeholders() {
 
   if (!offers) return <div className="empty">Loading…</div>;
 
-  const pick = (key) => offers.filter((o) => o.placeholder === key && o.status !== "expired").sort((a, b) => (a.status === "live" ? -1 : 1))[0];
+  const shown = (o) => !["expired", "pending", "rejected"].includes(o.status);
+  const pick = (key) => offers.filter((o) => o.placeholder === key && shown(o)).sort((a, b) => (a.status === "live" ? -1 : 1))[0];
   const slot = Object.fromEntries(PLACEHOLDERS.map((p) => [p.key, pick(p.key)]));
 
   const Slot = ({ pkey, fmt }) => {

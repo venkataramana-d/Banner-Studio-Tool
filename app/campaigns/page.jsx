@@ -7,7 +7,7 @@ import { countryFlag, placeholderName, COUNTRIES, PLACEHOLDERS } from "@/lib/con
 import { displayLabel } from "@/lib/logic";
 import { themeFor } from "@/components/banner-theme";
 
-const pcls = { live: "p-live", scheduled: "p-scheduled", draft: "p-draft", expired: "p-expired", paused: "p-paused" };
+const pcls = { live: "p-live", scheduled: "p-scheduled", draft: "p-draft", expired: "p-expired", paused: "p-paused", pending: "p-pending", rejected: "p-rejected" };
 const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 
 export default function Campaigns() {
@@ -43,6 +43,22 @@ export default function Campaigns() {
   // Duplicate: open a pre-filled Create drawer from this offer (change the year to clone to next year).
   function duplicate(o) { openDrawer({ ...o, id: undefined }); toast("Duplicated - adjust and schedule", "info"); }
 
+  // Approval gate actions.
+  async function submit(o) {
+    await fetch(`/api/offers/${o.id}`, { method: "PUT", body: JSON.stringify({ approval: "pending", approvedBy: null, approvedAt: null, approvalNote: null, status: "scheduled" }) });
+    refresh(); toast("Submitted for approval");
+  }
+  async function approve(o) {
+    await fetch(`/api/offers/${o.id}`, { method: "PUT", body: JSON.stringify({ approval: "approved", approvedBy: "Marketing", approvedAt: new Date().toISOString(), status: "scheduled" }) });
+    refresh(); toast(`Approved "${o.name}"`);
+  }
+  async function reject(o) {
+    const note = window.prompt(`Reject "${o.name}"? Add a reason (optional):`, "");
+    if (note === null) return;
+    await fetch(`/api/offers/${o.id}`, { method: "PUT", body: JSON.stringify({ approval: "rejected", approvalNote: note || null }) });
+    refresh(); toast(`Rejected "${o.name}"`);
+  }
+
   return (
     <>
       <div className="page-head">
@@ -52,7 +68,7 @@ export default function Campaigns() {
       </div>
       <div className="filters">
         <select className="select" value={f.status} onChange={(e) => set("status", e.target.value)}>
-          <option value="">All status</option><option value="live">Live</option><option value="scheduled">Scheduled</option><option value="draft">Draft</option><option value="paused">Paused</option><option value="expired">Expired</option>
+          <option value="">All status</option><option value="pending">Pending approval</option><option value="live">Live</option><option value="scheduled">Scheduled</option><option value="draft">Draft</option><option value="rejected">Rejected</option><option value="paused">Paused</option><option value="expired">Expired</option>
         </select>
         <select className="select" value={f.country} onChange={(e) => set("country", e.target.value)}>
           <option value="">All countries</option><option value="GLOBAL">Global</option>
@@ -91,6 +107,9 @@ export default function Campaigns() {
                   <td><span className={"pill " + pcls[o.status]}>{cap(o.status)}</span></td>
                   <td className="tnum cell-sub">{(o.impressions || 0).toLocaleString()} / {(o.clicks || 0).toLocaleString()}</td>
                   <td style={{ whiteSpace: "nowrap" }} onClick={(e) => e.stopPropagation()}>
+                    {o.status === "pending" && <button className="row-act" title="Approve" aria-label="Approve offer" style={{ color: "var(--good)" }} onClick={() => approve(o)}>✓</button>}
+                    {o.status === "pending" && <button className="row-act" title="Reject" aria-label="Reject offer" style={{ color: "var(--crit, #B4483F)" }} onClick={() => reject(o)}>✕</button>}
+                    {(o.status === "draft" || o.status === "rejected") && <button className="row-act" title="Submit for approval" aria-label="Submit for approval" onClick={() => submit(o)}>↑</button>}
                     <button className="row-act" title="Edit" aria-label="Edit offer" onClick={() => openDrawer(o)}>✎</button>
                     <button className="row-act" title="Duplicate / clone" aria-label="Duplicate offer" onClick={() => duplicate(o)}>⧉</button>
                     <button className="row-act" title={o.status === "paused" ? "Resume" : "Pause"} aria-label={o.status === "paused" ? "Resume offer" : "Pause offer"} onClick={() => pause(o)}>{o.status === "paused" ? "▶" : "⏸"}</button>
