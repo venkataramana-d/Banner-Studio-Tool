@@ -81,6 +81,8 @@ automatically by country and date.
 - Invensis first; Edstellar in v1.1. Login deferred to just before go-live.
 
 ## Known limitations / next
-- Data is ephemeral on Vercel (mock store). Next step: a real database (Vercel Postgres/Neon) so offers persist.
-- Analytics figures are sample; they become real once persistence + event tracking land.
+- Persistence is now pluggable: set `POSTGRES_URL` (Vercel Postgres/Neon) and offers persist and are
+  shared across instances; unset, it uses the ephemeral file/mock store. Cold-start empty flicker fixed
+  on the client (retry-with-backoff) so a slow first request shows "Loading…", not a false empty list.
+- Analytics figures are sample; they become real once event tracking lands on top of the DB.
 - Remaining backlog: save-as-template, bulk-create, countdown banners, blackout dates, CSV export, approval step, A/B variants.

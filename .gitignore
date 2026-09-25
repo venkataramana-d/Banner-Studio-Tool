@@ -5,3 +5,6 @@
 *.log
 .DS_Store
 /data/store.json
+.env
+.env.local
+.env*.local

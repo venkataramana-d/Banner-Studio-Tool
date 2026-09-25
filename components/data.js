@@ -2,24 +2,46 @@
 import { useEffect, useState } from "react";
 import { useUI } from "./ui-context";
 
-export function useOffers() {
+// Fetch JSON with a few retries and backoff. A cold serverless instance can be slow
+// or briefly error on the first hit; retrying keeps the UI in its "Loading…" state
+// instead of falling through to a misleading empty list.
+async function fetchJson(url, { signal, retries = 4 } = {}) {
+  let lastErr;
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const r = await fetch(url, { signal, cache: "no-store" });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      return await r.json();
+    } catch (e) {
+      if (signal?.aborted) throw e;
+      lastErr = e;
+      if (attempt < retries) {
+        await new Promise((res) => setTimeout(res, 300 * 2 ** attempt)); // 300, 600, 1200, 2400ms
+      }
+    }
+  }
+  throw lastErr;
+}
+
+function useResource(url, pick) {
   const { version } = useUI();
-  const [offers, setOffers] = useState(null);
+  const [data, setData] = useState(null);
   useEffect(() => {
-    let on = true;
-    fetch("/api/offers").then((r) => r.json()).then((j) => { if (on) setOffers(j.offers || []); }).catch(() => on && setOffers([]));
-    return () => { on = false; };
+    const ctrl = new AbortController();
+    setData(null); // show loading again on refresh
+    fetchJson(url, { signal: ctrl.signal })
+      .then((j) => { if (!ctrl.signal.aborted) setData(pick(j) || []); })
+      .catch(() => { if (!ctrl.signal.aborted) setData([]); }); // only after retries are exhausted
+    return () => ctrl.abort();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [version]);
-  return offers;
+  return data;
+}
+
+export function useOffers() {
+  return useResource("/api/offers", (j) => j.offers);
 }
 
 export function useCoupons() {
-  const { version } = useUI();
-  const [coupons, setCoupons] = useState(null);
-  useEffect(() => {
-    let on = true;
-    fetch("/api/coupons").then((r) => r.json()).then((j) => { if (on) setCoupons(j.coupons || []); }).catch(() => on && setCoupons([]));
-    return () => { on = false; };
-  }, [version]);
-  return coupons;
+  return useResource("/api/coupons", (j) => j.coupons);
 }

@@ -78,11 +78,26 @@ npm run start   # run the production build
 3. No environment variables are required.
 4. Deploy. Vercel builds with `next build` and serves the App Router routes and API routes.
 
-**Data persistence note:** the demo uses a small file-backed mock store. Vercel's serverless
-filesystem is read-only except for a temporary directory, so on Vercel the store writes to `/tmp` and
-is **per-instance and ephemeral** - it re-seeds on cold starts and is not shared across instances.
-This is fine for a demo. For real persistence, replace `lib/store.js` with a database (or the
-Invensis `xapi` backend); the API routes and UI stay the same.
+**Data persistence:** the store auto-selects its backend at runtime (see `lib/store.js`):
+
+- **No database configured (default):** a file-backed mock store. Vercel's serverless filesystem is
+  read-only except for a temp dir, so there the store writes to `/tmp` and is **per-instance and
+  ephemeral** - it re-seeds on cold starts and is not shared across instances. Fine for a demo, but a
+  cold start can make Campaigns/Coupons look momentarily empty.
+- **Database configured (recommended for production):** set `POSTGRES_URL` (or `DATABASE_URL`) and the
+  store uses Postgres instead - data persists and is shared across instances. Offers/coupons are kept
+  as JSONB, so no column migration is needed; the schema and demo seed are created automatically on
+  first run.
+
+**Turn on real persistence on Vercel:**
+
+1. In the Vercel project, add a **Postgres** integration (Storage tab -> Create -> Postgres/Neon).
+   Vercel sets `POSTGRES_URL` on the project automatically.
+2. Redeploy. On first request the app creates the `offers` / `coupons` tables and seeds the demo data.
+3. No code change is required - the same API routes and UI work against either backend.
+
+Locally, copy `.env.example` to `.env.local` and paste a Neon connection string to develop against a
+real database; leave it unset to use the file store.
 
 ---
 
