@@ -7,7 +7,7 @@ import { FESTIVALS, festivalByKey } from "@/lib/festivals";
 import { COURSES, courseById, courseValue, CATEGORIES } from "@/lib/catalog";
 import { PLACEHOLDERS, placeholderName } from "@/lib/config";
 import { neutralCode, displayLabel, defaultMode, suggestDiscount } from "@/lib/logic";
-import { generateAll, generateBulk, cleanName, autofix, REGIONS, regionByKey } from "@/lib/content";
+import { generateAll, generateBulk, buildKit, cleanName, autofix, REGIONS, regionByKey } from "@/lib/content";
 
 const placeFormat = (key) => ({ course_top_bar: "thin", site_top_strip: "strip", bottom_action_bar: "strip", home_hero: "hero", popup_toast: "hero" }[key] || "hero");
 
@@ -64,6 +64,16 @@ export default function Content() {
   const bulkCourses = useMemo(() => bulkIds.map(courseById).filter(Boolean), [bulkIds]);
   const bulk = useMemo(() => generateBulk(fest, bulkCourses, { year: 2026, region }), [fest, bulkCourses, region]);
   const bulkLineCount = bulk.reduce((n, b) => n + b.lines.length, 0);
+
+  // Feature 9: campaign kit - a launch-ready bundle that prefills Create Offer.
+  const kit = useMemo(() => buildKit(festivalKey, courseId, { region, placeholder, year: 2026 }), [festivalKey, courseId, region, placeholder]);
+  const fmtShort = (iso) => (iso ? new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" }) : "-");
+  function pushKit(ph = placeholder) {
+    const k = buildKit(festivalKey, courseId, { region, placeholder: ph, year: 2026 });
+    if (!k) return;
+    openDrawer(k);
+    toast?.("Opening Create Offer with this kit");
+  }
 
   async function writeClip(text) {
     try { await navigator.clipboard.writeText(text); return true; } catch { return false; }
@@ -193,7 +203,7 @@ export default function Content() {
             </select>
           </div>
           <div className="field">
-            <label>Placeholder (for the preview)</label>
+            <label>Placeholder (preview &amp; kit)</label>
             <select className="select" value={placeholder} onChange={(e) => setPlaceholder(e.target.value)}>
               {PLACEHOLDERS.map((p) => <option key={p.key} value={p.key}>{p.name}</option>)}
             </select>
@@ -207,7 +217,7 @@ export default function Content() {
           <div style={{ marginTop: 12, fontSize: 12.5, color: "var(--muted)", background: "var(--surface-2)", border: "1px solid var(--line)", borderRadius: 10, padding: "10px 12px" }}>{copyText}</div>
           <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
             <button className="mini-btn" onClick={copy}>{copied ? "Copied ✓" : "Copy text"}</button>
-            <button className="mini-btn" onClick={() => openDrawer({ festivalKey, year: 2026 })}>Create offer with this</button>
+            <button className="mini-btn" onClick={() => pushKit()}>Create offer with this →</button>
           </div>
         </div>
       </div>
@@ -253,11 +263,41 @@ export default function Content() {
               <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
                 {fixable && <button className="mini-btn" onClick={() => fixLine(g.key, g.text)}>Fix</button>}
                 <button className="mini-btn" onClick={() => toggleExpand(g.key)}>{expanded.has(g.key) ? "Hide" : (g.usedShort ? "Full" : "Compact")}</button>
+                <button className="mini-btn" onClick={() => pushKit(g.key)} title="Create an offer for this slot">→ Offer</button>
                 <button className="mini-btn" onClick={() => copyLine(g.key, g.text)}>{copiedKey === g.key ? "Copied ✓" : "Copy"}</button>
               </div>
             </div>
           );
         })}
+      </div>
+
+      {/* Feature 9: campaign kit -> Create Offer */}
+      <div className="card panel" style={{ marginBottom: 18 }}>
+        <div className="panel-head">
+          <h3>Campaign kit · {cleanName(fest)}</h3>
+          <button className="btn-cta" style={{ padding: "7px 12px" }} onClick={() => pushKit()}>
+            <svg width="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14M13 5l7 7-7 7" /></svg>
+            Push to Create Offer
+          </button>
+        </div>
+        <div className="cell-sub" style={{ marginBottom: 10 }}>
+          One click opens Create Offer prefilled with the localized banner copy, coupon, discount and auto-schedule for <b>{course.name}</b> in the {placeholderName(placeholder)} slot ({region.label}). Review, then Schedule.
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))", gap: 10 }}>
+          {[
+            ["Tier", kit._tier.charAt(0).toUpperCase() + kit._tier.slice(1)],
+            ["Offer", kit._offerLabel],
+            ["Coupon", kit.couponCode],
+            ["Placeholder", placeholderName(placeholder)],
+            ["Live window", `${fmtShort(kit._window.startsAt)} → ${fmtShort(kit._window.endsAt)}`],
+            ["Region", kit._region],
+          ].map(([l, v]) => (
+            <div key={l} style={{ background: "var(--surface-2)", border: "1px solid var(--line)", borderRadius: 10, padding: "8px 10px" }}>
+              <div style={{ fontSize: 11, color: "var(--muted)", textTransform: "uppercase", letterSpacing: 0.3 }}>{l}</div>
+              <div style={{ fontWeight: 600, fontSize: 13, marginTop: 2 }}>{v}</div>
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* Feature 8: saved templates */}
