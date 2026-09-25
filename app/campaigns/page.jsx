@@ -14,8 +14,21 @@ export default function Campaigns() {
   const offers = useOffers();
   const { openDrawer, refresh, search, toast } = useUI();
   const [f, setF] = useState({ status: "", country: "", cat: "", tier: "", place: "" });
+  const [busy, setBusy] = useState(false);
   const set = (k, v) => setF((p) => ({ ...p, [k]: v }));
   const reset = () => setF({ status: "", country: "", cat: "", tier: "", place: "" });
+
+  // One place to mutate an offer: guards against double-submit and reports failures.
+  async function mutate(url, opts, okMsg) {
+    if (busy) return;
+    setBusy(true);
+    try {
+      const r = await fetch(url, opts);
+      if (!r.ok) throw new Error("request failed");
+      refresh(); if (okMsg) toast(okMsg);
+    } catch { toast("Could not complete that action - try again", "error"); }
+    finally { setBusy(false); }
+  }
 
   if (!offers) return <div className="empty">Loading…</div>;
 
@@ -32,31 +45,26 @@ export default function Campaigns() {
 
   async function del(o) {
     if (!window.confirm(`Delete the "${o.name}" offer for ${o.courseName}? This also removes its coupon and cannot be undone.`)) return;
-    await fetch(`/api/offers/${o.id}`, { method: "DELETE" });
-    refresh(); toast(`Deleted "${o.name}"`);
+    await mutate(`/api/offers/${o.id}`, { method: "DELETE" }, `Deleted "${o.name}"`);
   }
   async function pause(o) {
     const resuming = o.status === "paused";
-    await fetch(`/api/offers/${o.id}`, { method: "PUT", body: JSON.stringify({ status: resuming ? "scheduled" : "paused" }) });
-    refresh(); toast(resuming ? "Offer resumed" : "Offer paused");
+    await mutate(`/api/offers/${o.id}`, { method: "PUT", body: JSON.stringify({ status: resuming ? "scheduled" : "paused" }) }, resuming ? "Offer resumed" : "Offer paused");
   }
   // Duplicate: open a pre-filled Create drawer from this offer (change the year to clone to next year).
   function duplicate(o) { openDrawer({ ...o, id: undefined }); toast("Duplicated - adjust and schedule", "info"); }
 
   // Approval gate actions.
   async function submit(o) {
-    await fetch(`/api/offers/${o.id}`, { method: "PUT", body: JSON.stringify({ approval: "pending", approvedBy: null, approvedAt: null, approvalNote: null, status: "scheduled" }) });
-    refresh(); toast("Submitted for approval");
+    await mutate(`/api/offers/${o.id}`, { method: "PUT", body: JSON.stringify({ approval: "pending", approvedBy: null, approvedAt: null, approvalNote: null, status: "scheduled" }) }, "Submitted for approval");
   }
   async function approve(o) {
-    await fetch(`/api/offers/${o.id}`, { method: "PUT", body: JSON.stringify({ approval: "approved", approvedBy: "Marketing", approvedAt: new Date().toISOString(), status: "scheduled" }) });
-    refresh(); toast(`Approved "${o.name}"`);
+    await mutate(`/api/offers/${o.id}`, { method: "PUT", body: JSON.stringify({ approval: "approved", approvedBy: "Marketing", approvedAt: new Date().toISOString(), status: "scheduled" }) }, `Approved "${o.name}"`);
   }
   async function reject(o) {
     const note = window.prompt(`Reject "${o.name}"? Add a reason (optional):`, "");
     if (note === null) return;
-    await fetch(`/api/offers/${o.id}`, { method: "PUT", body: JSON.stringify({ approval: "rejected", approvalNote: note || null }) });
-    refresh(); toast(`Rejected "${o.name}"`);
+    await mutate(`/api/offers/${o.id}`, { method: "PUT", body: JSON.stringify({ approval: "rejected", approvalNote: note || null }) }, `Rejected "${o.name}"`);
   }
 
   return (

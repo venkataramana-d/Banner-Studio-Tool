@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCoupons, getOffers, getBlackouts } from "@/lib/store";
-import { validateCoupon, REASON_TEXT, blackoutFor } from "@/lib/logic";
+import { validateCoupon, REASON_TEXT, blackoutFor, computeStatus } from "@/lib/logic";
 
 export const dynamic = "force-dynamic";
 
@@ -17,8 +17,10 @@ export async function POST(req) {
   const coupon = cands.find((c) => country && c.countries?.includes(country)) || cands.find((c) => !c.countries?.length) || cands[0];
   let result = validateCoupon(coupon, { country, site });
   if (result.valid && coupon) {
+    // The coupon only redeems while its offer is actually live - this covers the
+    // approval gate (pending/rejected), paused offers, and anything else off-schedule.
     const offer = (await getOffers()).find((o) => o.id === coupon.offerId);
-    if (offer && (offer.approval || "approved") !== "approved") {
+    if (offer && computeStatus(offer) !== "live") {
       result = { valid: false, reason: "not_approved" };
     }
   }

@@ -12,7 +12,7 @@ export async function GET(_req, { params }) {
 export async function PUT(req, { params }) {
   let patch;
   try { patch = await req.json(); } catch { return NextResponse.json({ error: "invalid_json" }, { status: 400 }); }
-  if (!patch || typeof patch !== "object") return NextResponse.json({ error: "invalid_body" }, { status: 400 });
+  if (!patch || typeof patch !== "object" || Array.isArray(patch)) return NextResponse.json({ error: "invalid_body" }, { status: 400 });
   const offer = await updateOffer(params.id, patch);
   if (!offer) return NextResponse.json({ error: "not_found" }, { status: 404 });
   return NextResponse.json({ offer });

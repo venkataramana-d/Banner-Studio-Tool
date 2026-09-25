@@ -58,6 +58,18 @@ export function useBlackouts() {
   return useResource("/api/blackouts", (j) => j.blackouts);
 }
 
+// Read the persisted Settings (localStorage) - margin floor, kill switch, etc.
+export function useSettings() {
+  const [s, setS] = useState(null);
+  useEffect(() => {
+    const load = () => { try { setS(JSON.parse(localStorage.getItem("bs_settings") || "{}")); } catch { setS({}); } };
+    load();
+    window.addEventListener("storage", load);
+    return () => window.removeEventListener("storage", load);
+  }, []);
+  return s || {};
+}
+
 // Fire-and-forget event ingest (impression / click / redemption). Best-effort:
 // never throws, uses keepalive so it survives navigation.
 export function track(type, offerId, country, placeholder, variant) {

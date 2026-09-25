@@ -1,8 +1,8 @@
 "use client";
-import { useOffers, useCoupons } from "@/components/data";
+import { useOffers, useEvents } from "@/components/data";
 import { useUI } from "@/components/ui-context";
 import { FESTIVALS, resolveFestivalDate } from "@/lib/festivals";
-import { countryFlag } from "@/lib/config";
+import { countryFlag, placeholderName } from "@/lib/config";
 import { courseById } from "@/lib/catalog";
 import { displayLabel, priceAfter } from "@/lib/logic";
 import { themeFor } from "@/components/banner-theme";
@@ -27,38 +27,31 @@ function Bars({ data }) {
 
 export default function Dashboard() {
   const offers = useOffers();
-  const coupons = useCoupons();
+  const events = useEvents();
   const { openDrawer, search } = useUI();
-  if (!offers || !coupons) return <div className="empty">Loading…</div>;
+  if (!offers || !events) return <div className="empty">Loading…</div>;
 
   const q = (search || "").toLowerCase();
   const live = offers.filter((o) => o.status === "live");
   const scheduled = offers.filter((o) => o.status === "scheduled");
   const pending = offers.filter((o) => o.status === "pending");
-  const impressions = offers.reduce((s, o) => s + (o.impressions || 0), 0);
-  const clicks = offers.reduce((s, o) => s + (o.clicks || 0), 0);
+
+  // Metrics come from the tracked event rollups (same source as Analytics, so the
+  // two pages always reconcile), joined to offers for pricing.
+  const offersById = Object.fromEntries(offers.map((o) => [o.id, o]));
+  let impressions = 0, clicks = 0, redeemed = 0, revenue = 0;
+  const byCountry = {}, byPlace = {};
+  for (const e of events) {
+    impressions += e.impressions; clicks += e.clicks; redeemed += e.redemptions;
+    const o = offersById[e.offerId];
+    const festPrice = o ? priceAfter(courseById(o.courseId)?.price || 0, o.mode, o.discountPct) : 0;
+    revenue += e.redemptions * festPrice;
+    if (e.redemptions > 0) byCountry[e.country] = (byCountry[e.country] || 0) + e.redemptions;
+    if (e.impressions > 0) byPlace[e.placeholder] = (byPlace[e.placeholder] || 0) + e.impressions;
+  }
   const ctr = impressions ? ((clicks / impressions) * 100).toFixed(1) : "0.0";
-
-  // Real redemptions + estimated discounted revenue (offers joined to their coupons).
-  const redByOffer = {};
-  coupons.forEach((c) => { redByOffer[c.offerId] = (redByOffer[c.offerId] || 0) + (c.redeemed || 0); });
-  const redeemed = Object.values(redByOffer).reduce((s, v) => s + v, 0);
-  const revenue = offers.reduce((s, o) => {
-    const course = courseById(o.courseId);
-    const festPrice = course ? priceAfter(course.price, o.mode, o.discountPct) : 0;
-    return s + (redByOffer[o.id] || 0) * festPrice;
-  }, 0);
-
-  const redByCountry = {};
-  offers.forEach((o) => {
-    const r = redByOffer[o.id] || 0;
-    if (r <= 0) return;
-    const cs = o.countries || [];
-    if (cs.length) { const each = r / cs.length; cs.forEach((c) => { redByCountry[c] = (redByCountry[c] || 0) + each; }); }
-    else redByCountry.GLB = (redByCountry.GLB || 0) + r;
-  });
-  const countryBars = Object.entries(redByCountry)
-    .map(([c, v]) => [`${c === "GLB" ? "🌍 Global" : `${countryFlag(c)} ${c}`}`, Math.round(v), Math.round(v).toLocaleString()])
+  const countryBars = Object.entries(byCountry)
+    .map(([c, v]) => [`${c === "GLB" ? "🌍 Global" : `${countryFlag(c)} ${c}`}`, v, v.toLocaleString()])
     .sort((a, b) => b[1] - a[1]).slice(0, 5);
 
   // When searching, the left panel becomes "matching offers" across all statuses.
@@ -72,9 +65,7 @@ export default function Dashboard() {
     .sort((a, b) => new Date(Date.UTC(a.dt.y, a.dt.m - 1, a.dt.d)) - new Date(Date.UTC(b.dt.y, b.dt.m - 1, b.dt.d)))
     .slice(0, 5);
 
-  const byPlace = {};
-  offers.forEach((o) => { byPlace[o.placeholder] = (byPlace[o.placeholder] || 0) + (o.impressions || 0); });
-  const placeBars = Object.entries(byPlace).map(([k, v]) => [k.replace(/_/g, " "), v, v.toLocaleString()]).sort((a, b) => b[1] - a[1]).slice(0, 5);
+  const placeBars = Object.entries(byPlace).map(([k, v]) => [placeholderName(k), v, v.toLocaleString()]).sort((a, b) => b[1] - a[1]).slice(0, 5);
 
   const M = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
@@ -90,9 +81,9 @@ export default function Dashboard() {
           <Link className="link" href="/campaigns" style={{ marginLeft: 6, textDecoration: "underline" }}>Review →</Link></div>}
         {scheduled.length > 0 && <div className="alert info">
           <svg width="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M3 9h18M8 3v4M16 3v4" /></svg>
-          {scheduled.length} offers scheduled and will go live automatically on their festival window.</div>}
-        {upcoming[0] && <div className="alert warn">
-          <svg width="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 9v4M12 17h.01M10.3 3.9 2 18a2 2 0 0 0 1.7 3h16.6a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z" /></svg>
+          {scheduled.length} offer{scheduled.length > 1 ? "s" : ""} scheduled and will go live automatically on their festival window.</div>}
+        {upcoming[0] && <div className="alert info">
+          <svg width="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M3 9h18M8 3v4M16 3v4" /></svg>
           Next up: {upcoming[0].f.name} on {M[upcoming[0].dt.m - 1]} {upcoming[0].dt.d}.
           <button className="link" style={{ marginLeft: 6, textDecoration: "underline", cursor: "pointer" }} onClick={() => openDrawer({ festivalKey: upcoming[0].f.key, year: 2026 })}>Create an offer →</button></div>}
       </div>

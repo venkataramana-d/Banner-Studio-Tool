@@ -254,7 +254,7 @@ export default function Content() {
         <div className="cell-sub" style={{ marginBottom: 4 }}>
           Filled for <b>{cleanName(fest)}</b> · {course.name}
           {region.key !== "global" && <> · <b>{region.label}</b> tone ({region.tone}), hook &ldquo;{region.hook}&rdquo;</>}.
-          A line that overflows its slot switches to a compact version automatically; every line is checked against the brand rules (no country, no price, no em dash).
+          A line that overflows its slot switches to a compact version automatically (localizing adds a greeting + hook, so a localized line can still run over - the counter shows it); every line is checked against the brand rules (no country, no price, no em dash).
         </div>
         {generated.map((g) => {
           const fits = g.text.length <= g.budget;
@@ -379,7 +379,7 @@ export default function Content() {
             const on = bulkIds.includes(c.id);
             return (
               <button key={c.id} className="mini-btn" onClick={() => toggleBulk(c.id)}
-                style={{ background: on ? "var(--brand)" : "var(--surface-2)", color: on ? "#fff" : "var(--muted)", borderColor: on ? "transparent" : "var(--line)" }}>
+                style={{ background: on ? "var(--brand-2)" : "var(--surface-2)", color: on ? "#fff" : "var(--muted)", borderColor: on ? "transparent" : "var(--line)" }}>
                 {on ? "✓ " : ""}{c.name}
               </button>
             );

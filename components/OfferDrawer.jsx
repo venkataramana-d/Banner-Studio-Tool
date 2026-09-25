@@ -1,11 +1,11 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
 import { useUI } from "./ui-context";
-import { useBlackouts, useEvents } from "./data";
+import { useBlackouts, useEvents, useSettings } from "./data";
 import Banner from "./Banner";
 import { FESTIVALS, festivalByKey } from "@/lib/festivals";
 import { COURSES, courseById, courseValue } from "@/lib/catalog";
-import { PLACEHOLDERS, countryFlag, COUNTRIES } from "@/lib/config";
+import { PLACEHOLDERS, countryFlag, COUNTRIES, POLICY } from "@/lib/config";
 import {
   computeWindow, defaultMode, suggestDiscount, displayLabel, priceAfter, marginOk, neutralCode, countdownText, windowBlackout,
 } from "@/lib/logic";
@@ -36,6 +36,7 @@ export default function OfferDrawer() {
   const { drawer, closeDrawer, refresh, site, toast } = useUI();
   const blackouts = useBlackouts();
   const events = useEvents();
+  const settings = useSettings();
   const editing = drawer.offer?.id ? drawer.offer : null;
 
   const [festivalKey, setFestivalKey] = useState("in_diwali");
@@ -115,6 +116,14 @@ export default function OfferDrawer() {
     setBValue(cr?.variantB?.valueLine || "");
   }, [drawer.open, drawer.offer]);
 
+  // Close on Escape while the drawer is open.
+  useEffect(() => {
+    if (!drawer.open) return;
+    const onKey = (e) => { if (e.key === "Escape") closeDrawer(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [drawer.open, closeDrawer]);
+
   const isCustom = festivalKey === "custom";
   const fest = isCustom
     ? { key: "custom", name: customName || "Custom occasion", tier: customTier, scope: customScope, motivation: cHeadline || "Grow your skills", countries }
@@ -181,7 +190,8 @@ export default function OfferDrawer() {
   const label = displayLabel(mode, discountPct);
   const festPrice = priceAfter(course.price, mode, discountPct);
   const current = Math.round(course.price * 0.8);
-  const floorOk = marginOk(course.price, festPrice);
+  const floorPct = typeof settings.floor === "number" ? settings.floor : POLICY.marginFloorPct;
+  const floorOk = marginOk(course.price, festPrice, floorPct);
   const useCustom = customDates && startDate && endDate;
   const passWindow = (isCustom || useCustom) && win && win.startsAt;
   const creative = {
@@ -255,7 +265,7 @@ export default function OfferDrawer() {
   return (
     <>
       <div className="overlay" onClick={closeDrawer} />
-      <aside className="drawer">
+      <aside className="drawer" role="dialog" aria-modal="true" aria-label={editing ? "Edit offer" : "Create offer"}>
         <div className="drawer-head">
           <h3>{editing ? "Edit offer" : "Create offer"}</h3>
           <button className="close-x" onClick={closeDrawer} aria-label="Close">✕</button>
@@ -364,7 +374,7 @@ export default function OfferDrawer() {
           </div>
           <div className="guard" style={{ color: floorOk ? "var(--good)" : "var(--crit)" }}>
             <svg width="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M20 6 9 17l-5-5" /></svg>
-            {floorOk ? "Within 35% margin floor - safe to publish." : "⚠ Below margin floor - reduce the discount."}
+            {floorOk ? `Within ${floorPct}% margin floor - safe to publish.` : "⚠ Below margin floor - reduce the discount."}
           </div>
 
           <div className="field">
@@ -468,10 +478,14 @@ export default function OfferDrawer() {
         </div>
         <div className="drawer-foot">
           <button className="btn-ghost" disabled={saving} onClick={() => save("draft", "draft")}>Save draft</button>
-          {editing && (editing.approval || "approved") === "approved" && (
-            <button className="btn-ghost" disabled={saving} onClick={() => save("scheduled", "approved")}>Save (keep live)</button>
+          {editing && (editing.approval || "approved") === "approved" ? (
+            <>
+              <button className="btn-ghost" disabled={saving} onClick={() => save("scheduled", "pending")}>Re-submit</button>
+              <button className="btn-primary" disabled={saving} onClick={() => save("scheduled", "approved")}>{saving ? "Saving…" : "Save changes"}</button>
+            </>
+          ) : (
+            <button className="btn-primary" disabled={saving} onClick={() => save("scheduled", "pending")}>{saving ? "Saving…" : "Submit for approval"}</button>
           )}
-          <button className="btn-primary" disabled={saving} onClick={() => save("scheduled", "pending")}>{saving ? "Saving…" : "Submit for approval"}</button>
         </div>
       </aside>
     </>

@@ -12,7 +12,11 @@ export async function GET() {
 export async function POST(req) {
   let input;
   try { input = await req.json(); } catch { return NextResponse.json({ error: "invalid_json" }, { status: 400 }); }
-  if (!input || typeof input !== "object") return NextResponse.json({ error: "invalid_body" }, { status: 400 });
+  if (!input || typeof input !== "object" || Array.isArray(input)) return NextResponse.json({ error: "invalid_body" }, { status: 400 });
+  if (input.countries != null && !Array.isArray(input.countries)) return NextResponse.json({ error: "invalid_countries" }, { status: 400 });
+  // Enforce the approval gate at the API boundary: a newly created non-draft offer
+  // is submitted for review, not published, unless it explicitly says otherwise.
+  if (input.approval == null && input.status !== "draft") input.approval = "pending";
   // overlap check before creating (unless explicitly forced)
   try {
     const draft = buildOffer(input);
@@ -20,8 +24,8 @@ export async function POST(req) {
     if (conflicts.length && !input.force) {
       return NextResponse.json({ error: "overlap", conflicts }, { status: 409 });
     }
-  } catch (e) {
-    return NextResponse.json({ error: e.message }, { status: 400 });
+  } catch {
+    return NextResponse.json({ error: "invalid_offer" }, { status: 400 });
   }
   const offer = await createOffer(input);
   return NextResponse.json({ offer }, { status: 201 });

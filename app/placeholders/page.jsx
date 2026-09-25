@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useMemo, useRef } from "react";
-import { useOffers, track } from "@/components/data";
+import { useOffers, track, useSettings } from "@/components/data";
 import { useUI } from "@/components/ui-context";
 import Banner from "@/components/Banner";
 import { festivalByKey } from "@/lib/festivals";
@@ -34,6 +34,8 @@ const eventCountry = (o) => (o.scope === "global" ? "GLB" : (o.countries?.[0] ||
 export default function Placeholders() {
   const offers = useOffers();
   const { openDrawer } = useUI();
+  const settings = useSettings();
+  const killed = !!settings.kill;
 
   // For A/B offers, pick which variant this page view shows (50/50), once per load.
   const variantOf = useMemo(() => {
@@ -43,9 +45,10 @@ export default function Placeholders() {
   }, [offers]);
 
   // Record an impression for each live banner shown on this page (once per view).
+  // The kill switch takes every banner offline, so nothing renders or tracks.
   const impressed = useRef(false);
   useEffect(() => {
-    if (!offers || impressed.current) return;
+    if (!offers || killed || impressed.current) return;
     impressed.current = true;
     const seen = new Set();
     for (const o of offers) {
@@ -53,16 +56,17 @@ export default function Placeholders() {
       seen.add(o.placeholder);
       track("impression", o.id, eventCountry(o), o.placeholder, variantOf[o.id]);
     }
-  }, [offers, variantOf]);
+  }, [offers, variantOf, killed]);
 
   if (!offers) return <div className="empty">Loading…</div>;
 
   const shown = (o) => !["expired", "pending", "rejected"].includes(o.status);
-  const pick = (key) => offers.filter((o) => o.placeholder === key && shown(o)).sort((a, b) => (a.status === "live" ? -1 : 1))[0];
+  const pick = (key) => offers.filter((o) => o.placeholder === key && shown(o)).sort((a, b) => (b.status === "live" ? 1 : 0) - (a.status === "live" ? 1 : 0))[0];
   const slot = Object.fromEntries(PLACEHOLDERS.map((p) => [p.key, pick(p.key)]));
 
   const Slot = ({ pkey, fmt }) => {
     const o = slot[pkey];
+    if (killed && o) return <div style={{ padding: 12, textAlign: "center", color: "var(--crit)", fontSize: 12, background: "var(--crit-bg)", borderRadius: 8, fontWeight: 600 }}>Hidden by kill switch</div>;
     if (!o) return <div style={{ padding: 12, textAlign: "center", color: "var(--muted)", fontSize: 12, background: "var(--surface-2)" }}>No active offer in {placeholderName(pkey)}</div>;
     const bp = bannerProps(o, variantOf[o.id]);
     const cta = bp.cta !== undefined ? bp.cta : (fmt === "strip" ? "Enroll Now" : "Enroll →");
@@ -74,6 +78,12 @@ export default function Placeholders() {
       <div className="page-head">
         <div><div className="eyebrow">On-site slots</div><h1>Placeholders</h1><p>Where each festival banner renders on the live site - filled by your active offers.</p></div>
       </div>
+      {killed && (
+        <div className="alert warn" style={{ marginBottom: 16 }}>
+          <svg width="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 9v4M12 17h.01M10.3 3.9 2 18a2 2 0 0 0 1.7 3h16.6a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z" /></svg>
+          Master kill switch is ON (Settings). Every banner is hidden across the site.
+        </div>
+      )}
 
       <div className="site-mock">
         <div className="sm-bar"><span className="sm-dot" style={{ background: "#FF5F57" }} /><span className="sm-dot" style={{ background: "#FEBC2E" }} /><span className="sm-dot" style={{ background: "#28C840" }} /><span className="sm-url">invensislearning.com/pmp-certification-training</span></div>

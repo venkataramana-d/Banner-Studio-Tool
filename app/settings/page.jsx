@@ -146,7 +146,7 @@ export default function Settings() {
 
         <div className="card setting" style={{ gridColumn: "1/-1" }}>
           <div className="kill">
-            <div><b>Master kill switch</b><div style={{ fontSize: 12, color: "#b4483f" }}>Instantly hide every banner across all sites.</div></div>
+            <div><b>Master kill switch</b><div style={{ fontSize: 12, color: "var(--crit)" }}>Instantly hide every banner across all sites.</div></div>
             <Toggle on={s.kill} label="Master kill switch" onClick={() => update({ kill: !s.kill })} />
           </div>
         </div>
