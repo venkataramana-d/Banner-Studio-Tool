@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useOffers, track } from "@/components/data";
 import { useUI } from "@/components/ui-context";
 import Banner from "@/components/Banner";
@@ -12,16 +12,17 @@ const placeFormat = (key) => ({ course_top_bar: "thin", site_top_strip: "strip",
 const pcls = { live: "p-live", scheduled: "p-scheduled", draft: "p-draft", expired: "p-expired", paused: "p-paused" };
 const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 
-function bannerProps(o) {
+function bannerProps(o, variant) {
   const fest = festivalByKey(o.festivalKey) || { name: o.name, motivation: o.creative?.headline || o.name };
   const course = courseById(o.courseId);
   const cr = o.creative;
+  const useB = variant === "B" && cr?.variantB;
   return {
     festivalKey: o.festivalKey,
     tag: cr?.tagText ?? (fest.name + " Offer"),
-    motivation: cr?.headline ?? fest.motivation,
+    motivation: useB ? cr.variantB.headline : (cr?.headline ?? fest.motivation),
     offerLabel: displayLabel(o.mode, o.discountPct), courseTm: course?.tm,
-    courseValue: cr ? (cr.showValue !== false ? cr.valueLine : "") : courseValue(course),
+    courseValue: useB ? cr.variantB.valueLine : (cr ? (cr.showValue !== false ? cr.valueLine : "") : courseValue(course)),
     code: o.couponCode, autoApply: !!o.autoApply,
     cta: cr ? (cr.showCta !== false ? (cr.ctaText || "Enroll") : "") : undefined,
     countdown: cr?.countdown ? (countdownText(o.endsAt) || "") : "",
@@ -34,6 +35,13 @@ export default function Placeholders() {
   const offers = useOffers();
   const { openDrawer } = useUI();
 
+  // For A/B offers, pick which variant this page view shows (50/50), once per load.
+  const variantOf = useMemo(() => {
+    const m = {};
+    (offers || []).forEach((o) => { if (o.creative?.abTest && o.creative?.variantB) m[o.id] = Math.random() < 0.5 ? "A" : "B"; });
+    return m;
+  }, [offers]);
+
   // Record an impression for each live banner shown on this page (once per view).
   const impressed = useRef(false);
   useEffect(() => {
@@ -43,9 +51,9 @@ export default function Placeholders() {
     for (const o of offers) {
       if (o.status !== "live" || seen.has(o.placeholder)) continue;
       seen.add(o.placeholder);
-      track("impression", o.id, eventCountry(o), o.placeholder);
+      track("impression", o.id, eventCountry(o), o.placeholder, variantOf[o.id]);
     }
-  }, [offers]);
+  }, [offers, variantOf]);
 
   if (!offers) return <div className="empty">Loading…</div>;
 
@@ -56,7 +64,7 @@ export default function Placeholders() {
   const Slot = ({ pkey, fmt }) => {
     const o = slot[pkey];
     if (!o) return <div style={{ padding: 12, textAlign: "center", color: "var(--muted)", fontSize: 12, background: "var(--surface-2)" }}>No active offer in {placeholderName(pkey)}</div>;
-    const bp = bannerProps(o);
+    const bp = bannerProps(o, variantOf[o.id]);
     const cta = bp.cta !== undefined ? bp.cta : (fmt === "strip" ? "Enroll Now" : "Enroll →");
     return <Banner {...bp} format={fmt} cta={cta} />;
   };
@@ -95,7 +103,7 @@ export default function Placeholders() {
                 {o ? <span className={"pill " + pcls[o.status]}>{cap(o.status)}</span> : <span className="pill p-draft">Empty</span>}
               </div>
               <p style={{ color: "var(--muted)", fontSize: 12.5, margin: 0 }}>{p.desc}</p>
-              <div className="slot-frame" onClick={() => { if (o) track("click", o.id, eventCountry(o), o.placeholder); }} style={{ cursor: o ? "pointer" : "default" }} title={o ? "Simulate a tracked banner click" : undefined}>
+              <div className="slot-frame" onClick={() => { if (o) track("click", o.id, eventCountry(o), o.placeholder, variantOf[o.id]); }} style={{ cursor: o ? "pointer" : "default" }} title={o ? "Simulate a tracked banner click" : undefined}>
                 <Slot pkey={p.key} fmt={placeFormat(p.key)} />
               </div>
               <div style={{ display: "flex", gap: 8, fontSize: 11.5, marginTop: "auto" }}>

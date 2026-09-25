@@ -16,6 +16,7 @@ export async function POST(req) {
   if (!["impression", "click", "redemption"].includes(type) || !body?.offerId) {
     return NextResponse.json({ error: "invalid_event" }, { status: 400 });
   }
-  await recordEvent({ type, offerId: body.offerId, country: body.country, placeholder: body.placeholder });
+  const variant = body.variant === "A" || body.variant === "B" ? body.variant : null;
+  await recordEvent({ type, offerId: body.offerId, country: body.country, placeholder: body.placeholder, variant });
   return NextResponse.json({ ok: true });
 }

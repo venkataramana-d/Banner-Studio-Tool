@@ -60,13 +60,13 @@ export function useBlackouts() {
 
 // Fire-and-forget event ingest (impression / click / redemption). Best-effort:
 // never throws, uses keepalive so it survives navigation.
-export function track(type, offerId, country, placeholder) {
+export function track(type, offerId, country, placeholder, variant) {
   if (!offerId) return;
   try {
     fetch("/api/events", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ type, offerId, country, placeholder }),
+      body: JSON.stringify({ type, offerId, country, placeholder, variant }),
       keepalive: true,
     }).catch(() => {});
   } catch { /* ignore */ }

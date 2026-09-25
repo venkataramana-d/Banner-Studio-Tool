@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
 import { useUI } from "./ui-context";
-import { useBlackouts } from "./data";
+import { useBlackouts, useEvents } from "./data";
 import Banner from "./Banner";
 import { FESTIVALS, festivalByKey } from "@/lib/festivals";
 import { COURSES, courseById, courseValue } from "@/lib/catalog";
@@ -35,6 +35,7 @@ function windowFromDate(dateStr, lead, trail) {
 export default function OfferDrawer() {
   const { drawer, closeDrawer, refresh, site, toast } = useUI();
   const blackouts = useBlackouts();
+  const events = useEvents();
   const editing = drawer.offer?.id ? drawer.offer : null;
 
   const [festivalKey, setFestivalKey] = useState("in_diwali");
@@ -61,6 +62,10 @@ export default function OfferDrawer() {
   const [showValue, setShowValue] = useState(true);
   const [showCta, setShowCta] = useState(true);
   const [showCountdown, setShowCountdown] = useState(false);
+  // A/B test: an optional variant B headline / value line
+  const [abTest, setAbTest] = useState(false);
+  const [bHeadline, setBHeadline] = useState("");
+  const [bValue, setBValue] = useState("");
   // custom occasion (e.g. "Invensis Anniversary")
   const [customName, setCustomName] = useState("");
   const [customTier, setCustomTier] = useState("normal");
@@ -105,6 +110,9 @@ export default function OfferDrawer() {
     setShowValue(cr ? cr.showValue !== false : true);
     setShowCta(cr ? cr.showCta !== false : true);
     setShowCountdown(cr ? !!cr.countdown : false);
+    setAbTest(!!cr?.abTest);
+    setBHeadline(cr?.variantB?.headline || "");
+    setBValue(cr?.variantB?.valueLine || "");
   }, [drawer.open, drawer.offer]);
 
   const isCustom = festivalKey === "custom";
@@ -176,7 +184,21 @@ export default function OfferDrawer() {
   const floorOk = marginOk(course.price, festPrice);
   const useCustom = customDates && startDate && endDate;
   const passWindow = (isCustom || useCustom) && win && win.startsAt;
-  const creative = { tagText: cTag, headline: cHeadline, valueLine: cValue, ctaText: cCta, showValue, showCta, countdown: showCountdown };
+  const creative = {
+    tagText: cTag, headline: cHeadline, valueLine: cValue, ctaText: cCta, showValue, showCta, countdown: showCountdown,
+    abTest, variantB: abTest ? { headline: bHeadline || cHeadline, valueLine: bValue || cValue } : null,
+  };
+
+  // A/B results from tracked events for this offer (legacy no-variant rows count as A).
+  const abStats = useMemo(() => {
+    if (!editing?.id || !events) return null;
+    const rows = events.filter((e) => e.offerId === editing.id);
+    const agg = (pred) => rows.filter(pred).reduce((a, e) => ({ i: a.i + e.impressions, c: a.c + e.clicks }), { i: 0, c: 0 });
+    const A = agg((e) => (e.variant || "A") === "A");
+    const B = agg((e) => e.variant === "B");
+    const ctr = (x) => (x.i ? ((x.c / x.i) * 100).toFixed(1) : "0.0");
+    return { A: { ...A, ctr: ctr(A) }, B: { ...B, ctr: ctr(B) } };
+  }, [editing, events]);
   const customFields = isCustom ? { customName, customTier, customScope, customCountries: countries } : {};
 
   const approvalToast = (approval) => (approval === "pending" ? "Submitted for approval" : approval === "draft" ? "Draft saved" : editing?.id ? "Offer updated" : "Offer saved");
@@ -409,6 +431,25 @@ export default function OfferDrawer() {
             <input type="checkbox" checked={showCountdown} onChange={(e) => setShowCountdown(e.target.checked)} />
             Show a live countdown on the banner{win?.endsAt ? ` (${countdownText(win.endsAt) || "ended"})` : ""}
           </label>
+
+          <div className="section-t">A/B test</div>
+          <label style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 12.5, color: "var(--muted)", cursor: "pointer" }}>
+            <input type="checkbox" checked={abTest} onChange={(e) => setAbTest(e.target.checked)} />
+            Test a second headline (variant B). Live traffic is split 50/50 and tracked separately.
+          </label>
+          {abTest && (
+            <>
+              <div className="field"><label>Variant B headline</label><input value={bHeadline} onChange={(e) => setBHeadline(e.target.value)} maxLength={90} placeholder={cHeadline} /></div>
+              <div className="field"><label>Variant B value line</label><input value={bValue} onChange={(e) => setBValue(e.target.value)} maxLength={70} placeholder={cValue} /></div>
+              {abStats && (abStats.A.i > 0 || abStats.B.i > 0) && (
+                <div className="pricebox">
+                  <div className="pb"><div className="pl">A · CTR</div><div className="pv">{abStats.A.ctr}%</div><div className="pl">{abStats.A.i.toLocaleString()} impr</div></div>
+                  <div className="pb"><div className="pl">B · CTR</div><div className="pv">{abStats.B.ctr}%</div><div className="pl">{abStats.B.i.toLocaleString()} impr</div></div>
+                  <div className="pb"><div className="pl">Leading</div><div className="pv" style={{ color: "var(--good)" }}>{(+abStats.B.ctr > +abStats.A.ctr) ? "B" : "A"}</div></div>
+                </div>
+              )}
+            </>
+          )}
 
           <div className="section-t">Live preview - {PLACEHOLDERS.find((p) => p.key === placeholder)?.name}</div>
           <div style={{ maxWidth: "100%", overflow: "hidden" }}>
